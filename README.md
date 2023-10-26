@@ -6,6 +6,8 @@ Práticas e Práticas.
 
 ## Jogo 3D: NOME DO JOGO
 
+Mad Runner - Tire seu porsche do labirinto!
+
 ## Detalhes de implementação
 
 ## Inicialização do jogo
