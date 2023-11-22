@@ -7,7 +7,8 @@ add_executable(3DGame
         main.c
         main_3dgame.c
         main_3dgame.h
-        glm.h)
+        glm.h
+)
 find_package(OpenGL REQUIRED)
 find_package(GLUT REQUIRED)
 
