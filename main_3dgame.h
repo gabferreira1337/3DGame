@@ -1,7 +1,7 @@
 #ifndef INC_3DGAME_MAIN_3DGAME_H
 #define INC_3DGAME_MAIN_3DGAME_H
 
-#include "glm.h";
+#include "glm.h"
 
 typedef struct{
     GLfloat x, y, z;        // position
@@ -23,7 +23,7 @@ typedef struct model{
 
 } MODEL;
 
-void display();
+void display_car();
 void specialKeys(int key, int x, int y);
 int collides_With_Wall(float nextX, float nextY);
 int main_3DGame(int argc, char** argv);

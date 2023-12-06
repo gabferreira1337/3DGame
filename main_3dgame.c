@@ -5,6 +5,14 @@
 #include "main_3dgame.h"
 #include "glm.h"
 
+/**************************************
+************* CONSTANTE PI ************
+**************************************/
+
+#ifndef M_PI
+#define M_PI 3.1415926535897932384626433832795
+#endif
+
 #define CUBE_SIZE 1.0
 #define CYLINDER_BASE 0.25
 #define CYLINDER_TOP 0.25
@@ -17,6 +25,9 @@
 #define RIGHT_WHEELS_ADJUSTMENTS 0.25
 #define X_COMPONENT 0
 #define Z_COMPONENT 1
+
+#define GL_SILENCE_DEPRECATION
+
 
 //Camera parameters
 float camera_distance = 5.0;
@@ -183,6 +194,7 @@ void reshape(int width, int height) {
 
 void drawCube() {
     glutSolidCube(CUBE_SIZE);
+
 }
 
 void drawCylinder() {
@@ -264,7 +276,7 @@ void draw_car() {
 ***          DISPLAY FUNC             **
 **************************************/
 
-void display() {
+void display_car() {
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glLoadIdentity();
@@ -395,7 +407,7 @@ int main_3DGame(int argc, char** argv) {
     gluPerspective(45.0, 1.0, 0.1, 100.0);
     glMatrixMode(GL_MODELVIEW);
 
-    glutDisplayFunc(display);
+    glutDisplayFunc(display_car);
     glutSpecialFunc(specialKeys);
     glutMouseFunc(mouse);
     glutMotionFunc(mouse_motion);
@@ -403,7 +415,6 @@ int main_3DGame(int argc, char** argv) {
 
     glEnable(GL_DEPTH_TEST);
     glutMainLoop();
-
 
     return 0;
 }
