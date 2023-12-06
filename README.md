@@ -1,7 +1,3 @@
-Sure, here's a basic README.md for your maze game:
-
----
-
 # Maze Runner 3D Game
 
 ## Introduction
