@@ -1,16 +1,52 @@
-# Projeto Final Multimedia 2023
+# Maze Runner 3D Game
 
-O projeto passará pelo desenvolvimento de um jogo que deverá ser construído na linguagem
-C usando OpenGL e GLUT, conforme lecionado ao longo do semestre nas aulas Teórico-
-Práticas e Práticas.
+## Introduction
+Maze Runner is a simple 3D game implemented in C using OpenGL. The game involves navigating a car through a maze environment, avoiding collisions, and changing the car's colors.
 
-## Jogo 3D: NOME DO JOGO
+## Features
+- **Car Movement:** Control the car using keyboard inputs (up, down, left, right).
+- **Car Color Customization:** Change the color of the car body and wheels through the right-click menu.
+- **Camera Control:** Adjust the camera angle using mouse movements.
+- **Collision Detection:** Prevent the car from moving through walls by detecting collisions.
 
-Mad Runner - Tire seu porsche do labirinto!
-Qualquer mudança
+## How to Play
+1. **Controls:**
+    - *Up Arrow Key:* Move the car forward.
+    - *Down Arrow Key:* Move the car backward.
+    - *Left/Right Arrow Keys:* Rotate the car left or right.
+    - *Mouse Drag:* Control the camera view angle.
 
-## Detalhes de implementação
+2. **Menu Options:**
+    - *Right-Click Menu:* Change car colors or reset the camera angle.
 
-## Inicialização do jogo
+## Setup and Running the Game
+1. **Requirements:**
+    - OpenGL library
+    - C compiler
 
-## Notas acerca do projeto
+2. **Compiling the Code:**
+    - Compile the code with your C compiler.
+
+3. **Running the Game:**
+    - Execute the compiled program to start the game.
+
+## Usage
+- Use the arrow keys to navigate the car through the maze.
+- Right-click to access the menu and change the car's colors or reset the camera.
+
+## Future Improvements
+- Adding maze generation algorithms for dynamic maze creation.
+- Implementing different maze levels with increasing difficulties.
+- Enhancing the game interface and adding scoring mechanisms.
+
+## Contributors
+- Gabriel Ferreira - https://github.com/gabferreira1337
+- Karol Henriques - https://github.com/KarolHenriques
+- Maria Inês Gomes - 
+
+## License
+This project is licensed under the [License Name] - see the [LICENSE](link-to-license-file) file for details.
+
+---
+
+Feel free to update this README with additional details, instructions, or any specific contributions you've made to the project.
