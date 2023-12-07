@@ -36,6 +36,7 @@
 
 #define MAZE_HEIGHT               22
 #define MAZE_WIDTH                22
+#define CAMERA_ROTATION           0.1
 
 #define	OBJETO_ALTURA		        0.4
 #define OBJETO_VELOCIDADE	      0.5
@@ -45,13 +46,13 @@
 #define EYE_ROTACAO			          1
 
 #define NOME_TEXTURA_CUBOS        "data/chao.ppm"
-#define NOME_TEXTURA_CHAO         "/Users/karolhenriques/CLionProjects/3DGame/data/chao.ppm"
+#define NOME_TEXTURA_CHAO         "../data/chao.ppm"
 
 #define NUM_TEXTURAS              2
 #define ID_TEXTURA_CUBOS          0
 #define ID_TEXTURA_CHAO           1
 
-#define	CHAO_DIMENSAO		          10
+#define	CHAO_DIMENSAO		      10
 
 #define NUM_JANELAS               2
 #define JANELA_TOP                0
@@ -59,7 +60,7 @@
 
 #define STEP                      1
 
-#define NOME_PERSONAGEM         "/Users/karolhenriques/CLionProjects/3DGame/data/porsche.obj"
+#define NOME_PERSONAGEM         "/Users/gabrielferreira/Desktop/3DGame/data/porsche.mtl"
 
 /**************************************
 ********** VARIÁVEIS GLOBAIS **********
@@ -79,6 +80,12 @@ typedef struct {
     GLfloat   vel;
 } Objeto;
 
+typedef struct maze{
+    GLuint h;
+
+} MAZE;
+
+
 typedef struct {
     Posicao  eye;
     GLfloat  dir_long;  // longitude olhar (esq-dir)
@@ -87,12 +94,13 @@ typedef struct {
 } Camera;
 
 typedef struct {
-    Camera      camera;
+    Camera        camera;
     GLint         timer;
     GLint         mainWindow,topSubwindow,navigateSubwindow;
     Teclas        teclas;
     GLboolean     localViewer;
     GLuint        vista[NUM_JANELAS];
+    GLuint        jogo;         // 1 = on 0 = terminou o jogo
 } Estado;
 
 typedef struct {
@@ -105,6 +113,7 @@ typedef struct {
     GLMmodel*     modelo;
     GLboolean     andar;
     GLuint        prev;
+    GLuint        time_timer;
 } Modelo;
 
 Estado estado;
@@ -191,12 +200,14 @@ void init(void)
     estado.localViewer = 1;
     estado.vista[JANELA_TOP] = 0;
     estado.vista[JANELA_NAVIGATE] = 0;
+    estado.jogo = 1;
 
     modelo.objeto.pos.x = 0;
     modelo.objeto.pos.y = OBJETO_ALTURA * .5;
     modelo.objeto.pos.z = 0;
     modelo.objeto.dir = 0;
     modelo.objeto.vel = OBJETO_VELOCIDADE;
+    modelo.time_timer = 120; //2 minutes
 
     modelo.xMouse = modelo.yMouse = -1;
     modelo.andar = GL_FALSE;
@@ -291,14 +302,21 @@ void strokeCenterString(char *str,double x, double y, double z, double s)
 
 GLboolean detectaColisao (GLfloat nx, GLfloat nz)
 {
-    int x = nx + MAZE_WIDTH/2.0 - 1 + 0.5;
+    int x = + nx + MAZE_WIDTH/2.0 - 1 + 0.5 ;
     int z = nz + MAZE_HEIGHT/2.0 - 1 + 0.5;
 
-    if(mazedata[z][x] == '*'){
+    if (x < 0 || x >= MAZE_WIDTH || z < 0 || z >= MAZE_HEIGHT) {
+
         return GL_TRUE;
     }
-    return GL_FALSE;
+
+    if (mazedata[z][x] == '*') {
+        return GL_TRUE; // Collision detected
+    }
+
+    return GL_FALSE; // No collision
 }
+
 
 void desenhaPoligno (GLfloat a[], GLfloat b[], GLfloat c[], GLfloat d[], GLfloat normal[], GLfloat tx, GLfloat ty)
 {
@@ -433,6 +451,37 @@ void desenhaBussola(int width, int height)
 
 }
 
+void renderBitmapString(float x, float y, void *font, char *string) {
+    char *c;
+    glRasterPos2f(x, y);
+    for (c = string; *c != '\0'; c++) {
+        glutBitmapCharacter(font, *c);
+    }
+}
+
+void desenhaTimer(int width, int height) {
+    glViewport(0, height - 30, 100, 30);
+    glMatrixMode(GL_PROJECTION);
+
+    glLoadIdentity();
+    gluOrtho2D(0, 100, 0, 30);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    glColor3f(0.0, 0.0, 1.0);
+
+    // Posição do timer
+    int timerPosX = 10;
+    int timerPosY = 10;
+
+    char timerText[200];
+    sprintf(timerText, "Tempo restante: %d s",modelo.time_timer);
+    renderBitmapString(timerPosX, timerPosY, GLUT_BITMAP_HELVETICA_18, timerText);
+}
+
+
+
+
 void desenhaModeloDir(Objeto obj, int width, int height)
 {
     redisplayTopSubwindow(width, height);
@@ -449,7 +498,10 @@ void desenhaAngVisao(Camera *cam)
     glPushMatrix();
     glTranslatef(cam->eye.x,OBJETO_ALTURA,cam->eye.z);
     glColor4f(0,0,1,0.2);
-    glRotatef(GRAUS(cam->dir_long),0,1,0);
+   // glRotatef(GRAUS(cam->dir_long),0,1,0);
+    float angulo = GRAUS(modelo.objeto.dir);
+    glRotatef(angulo, 0, 1, 0);
+
 
     glBegin(GL_TRIANGLES);
     glVertex3f(0,0,0);
@@ -686,6 +738,7 @@ void displayTopSubwindow()
     glScalef(SCALE_PERSONAGEM,SCALE_PERSONAGEM,SCALE_PERSONAGEM);
     desenhaPersonagem();
 
+
     glPopMatrix();
 
     desenhaAngVisao(&estado.camera);
@@ -710,6 +763,7 @@ void displayMainWindow()
 {
     glClearColor(0.8f, 0.8f, 0.8f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    desenhaTimer(0, glutGet(GLUT_WINDOW_HEIGHT));
     glutSwapBuffers();
 }
 
@@ -717,65 +771,81 @@ void displayMainWindow()
 /**************************************
 ******** CALLBACKS TIME/IDLE **********
 **************************************/
+void temporizador(int value) {
+
+    if (modelo.time_timer > 0) {
+        modelo.time_timer--;
+
+        if (modelo.time_timer == 0) {
+            estado.jogo =0 ;
+            modelo.time_timer = 120;
+        }
+    }
+
+    glutTimerFunc(1000, temporizador, 0);
+}
+
 
 /* Callback de temporizador */
-void timer(int value)
-{
-    GLfloat nx=0,nz=0;
-    GLboolean andar=GL_FALSE;
+void timer(int value){
+        GLfloat nx = 0, nz = 0;
+        GLboolean andar = GL_FALSE;
 
-    GLuint curr = glutGet(GLUT_ELAPSED_TIME);
-    // Calcula velocidade baseado no tempo passado
-    float velocidade= modelo.objeto.vel*(curr - modelo.prev )*0.002;
+        GLuint curr = glutGet(GLUT_ELAPSED_TIME);
+        // Calcula velocidade baseado no tempo passado
+        float velocidade = modelo.objeto.vel * (curr - modelo.prev) * 0.002;
 
-    glutTimerFunc(estado.timer, timer, 0);
-    /* Acções do temporizador ...
-       Não colocar aqui primitivas OpenGL de desenho glBegin, glEnd, etc.
-     */
+        glutTimerFunc(estado.timer, timer, 0);
+        /* Acções do temporizador ...
+           Não colocar aqui primitivas OpenGL de desenho glBegin, glEnd, etc.
+         */
 
-    modelo.prev = curr;
+        modelo.prev = curr;
 
-    if(estado.teclas.up)
-    {
-        nx = modelo.objeto.pos.x + (velocidade * cosf(RAD(GRAUS(modelo.objeto.dir))));
-        nz = modelo.objeto.pos.z + (velocidade * sinf(RAD(GRAUS(modelo.objeto.dir))));
+        if (estado.teclas.up || estado.teclas.down)
+        {
+            float forwardComponent = velocidade * cosf(RAD(GRAUS(modelo.objeto.dir)));
+            float sidewaysComponent = velocidade * sinf(RAD(GRAUS(modelo.objeto.dir)));
 
-        if(!detectaColisao(nx,nz)) {
-            modelo.objeto.pos.x = nx;
-            modelo.objeto.pos.z = nz;
+            if (estado.teclas.down)
+            {
+                forwardComponent = -forwardComponent;
+                sidewaysComponent = -sidewaysComponent;
+            }
+
+            nx = modelo.objeto.pos.x + forwardComponent;
+            nz = modelo.objeto.pos.z - sidewaysComponent; // Ajuste aqui para subtrair a componente lateral
+
+            if (!detectaColisao(nx, nz))
+            {
+                modelo.objeto.pos.x = nx;
+                modelo.objeto.pos.z = nz;
+            }
+            andar = GL_TRUE;
         }
-        andar=GL_TRUE;
-    }
 
-    if(estado.teclas.down){
-        nx = modelo.objeto.pos.x - (velocidade * cosf(RAD(GRAUS(modelo.objeto.dir))));
-        nz = modelo.objeto.pos.z - (velocidade * sinf(RAD(GRAUS(modelo.objeto.dir))));
-
-        // calcula nova posição nx,nz
-        if(!detectaColisao(nx,nz)) {
-            modelo.objeto.pos.x = nx;
-            modelo.objeto.pos.z = nz;
+        if (estado.teclas.left)
+        {
+            // rodar camara e objeto
+            modelo.objeto.dir += CAMERA_ROTATION;
+            if (GRAUS(modelo.objeto.dir) >= 360)
+            {
+                modelo.objeto.dir = 0;
+            }
         }
-        andar=GL_TRUE;
-    }
-
-    if(estado.teclas.left){
-        // rodar camara e objeto
-        modelo.objeto.dir += 0.3;
-        if (GRAUS(modelo.objeto.dir) >= 360) {
-            modelo.objeto.dir = 0;
+        if (estado.teclas.right)
+        {
+            // rodar camara e objeto
+            modelo.objeto.dir -= CAMERA_ROTATION;
+            if (GRAUS(modelo.objeto.dir) <= -360)
+            {
+                modelo.objeto.dir = 0;
+            }
         }
-    }
-    if(estado.teclas.right){
-        // rodar camara e objeto
-        modelo.objeto.dir += -0.3;
-        if (GRAUS(modelo.objeto.dir) <= -360) {
-            modelo.objeto.dir = 0;
-        }
-    }
 
-    redisplayAll();
+        redisplayAll();
 }
+
 
 /**************************************
 *********** FUNÇÃO AJUDA **************
@@ -1012,6 +1082,7 @@ int main_lab(int argc, char **argv)
 
     glutReshapeFunc(reshapeNavigateSubwindow);
     glutDisplayFunc(displayNavigateSubwindow);
+    glutTimerFunc(1000, temporizador, 0);
     //glutMouseFunc(mouseNavigateSubwindow);
 
     glutTimerFunc(estado.timer, timer, 0);

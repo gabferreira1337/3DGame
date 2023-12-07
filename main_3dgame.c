@@ -377,7 +377,7 @@ void specialKeys(int key, int x, int y) {
     }
 
     if (mov.car_rotation_angle >= 360.0) {
-        mov.car_rotation_angle -= 360.0;
+        mov.car_rotation_angle -= 360.0f;
     }
 
     glutPostRedisplay();
@@ -389,7 +389,7 @@ int collides_With_Wall(float nextX, float nextY) {
     int j = (int)nextY;
 
     // Check if the next position is within the labyrinth bounds and is a wall
-    return (i >= 0 && i < model.maze.width && j >= 0 && j < model.maze.height && model.maze.cells[i][j] == 1);
+    return (i >= 0 && i < model.maze.width && j >= 0 && j < model.maze.height && model.maze.cells[i][j] == '*');
 }
 
 int main_3DGame(int argc, char** argv) {
