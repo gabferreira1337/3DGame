@@ -48,5 +48,3 @@ Maze Runner is a simple 3D game implemented in C using OpenGL. The game involves
 This project is licensed under the [License Name] - see the [LICENSE](link-to-license-file) file for details.
 
 ---
-
-Feel free to update this README with additional details, instructions, or any specific contributions you've made to the project.
