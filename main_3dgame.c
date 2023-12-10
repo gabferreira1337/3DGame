@@ -141,6 +141,8 @@ void createMenu() {
     glutAttachMenu(GLUT_RIGHT_BUTTON);
 }
 
+
+
 void drawText(float x, float y, const char *text) {
     glRasterPos2f(x, y);
     while (*text) {
