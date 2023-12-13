@@ -42,7 +42,7 @@
 #define OBJETO_VELOCIDADE	      0.5
 #define OBJETO_ROTACAO		        5
 #define OBJETO_RAIO		          0.12
-#define SCALE_PERSONAGEM            0.5
+#define SCALE_PERSONAGEM            1.5
 #define EYE_ROTACAO			          1
 
 #define NOME_TEXTURA_CUBOS        "../data/chao.ppm"
@@ -62,12 +62,11 @@
 
 #define NOME_PERSONAGEM         "../data/porsche.mtl"
 
-#define GAME_DURATION             15
+#define GAME_DURATION             120
 
 /**************************************
 ********** VARIÁVEIS GLOBAIS **********
 **************************************/
-int highlightOption = 0;
 char* gameOverMessage = "game over";
 
 typedef struct {
@@ -121,6 +120,8 @@ typedef struct {
 
 Estado estado;
 Modelo modelo;
+
+GLfloat storedColor[3] = {1.0f, 0.0f, 0.0f}; // Initial color: Red
 
 char mazedata [MAZE_HEIGHT][MAZE_WIDTH] = {
         "                      ",
@@ -469,26 +470,34 @@ GLboolean isInsideMazeBorders(){
     return GL_TRUE;
 }
 
-GLboolean isInsideMazeXBorders(){
+GLint isInsideMazeXBorders(){
     int x = (int)(modelo.objeto.pos.x + MAZE_WIDTH / 2);
     int x_left = (int)(modelo.objeto.pos.x - MAZE_WIDTH / 2);
 
-    if (x_left <= -MAZE_WIDTH + 2 || x >= MAZE_WIDTH){
-        return GL_FALSE;
+    if (x_left <= -MAZE_WIDTH + 2){
+        return 0;
     }
 
-    return GL_TRUE;
+    if(x >= MAZE_WIDTH - 2){
+        return -1;
+    }
+
+    return 1;
 }
 
-GLboolean isInsideMazeZBorders(){
+GLint isInsideMazeZBorders(){
     int z = (int)(modelo.objeto.pos.z + MAZE_HEIGHT / 2);
     int z_down = (int)(modelo.objeto.pos.z - MAZE_HEIGHT / 2);
 
-    if (z_down <= -MAZE_HEIGHT + 2 || z >= MAZE_HEIGHT){
-        return GL_FALSE;
+    if (z >= MAZE_HEIGHT - 2){
+        return 0;
     }
 
-    return GL_TRUE;
+    if(z_down <= -MAZE_HEIGHT + 2){
+        return -1;
+    }
+
+    return 1;
 }
 
 void desenhaTimer(int width, int height) {
@@ -520,22 +529,24 @@ void desenhaTimer(int width, int height) {
 }
 
 void changeLightsColorToGreen() {
-    GLfloat green_light_pos[4] = {modelo.objeto.pos.x, modelo.objeto.pos.y, modelo.objeto.pos.z, 0.2};
-    GLfloat green_light_diffuse[] = {0.0f, 1.0f, 0.0f, 1.0f}; // Set the light to green
 
-    //glDisable(GL_POSITION);
+    storedColor[0] = 0.0f;
+    storedColor[1] = 1.0f;
+    storedColor[2] = 0.0f;
+}
 
-    //glEnable(GL_LIGHTING);
-    glEnable(GL_LIGHT0);
-    glEnable(GL_LIGHT1);
+void changeLightsColorToBlue() {
 
-    //glLightfv(GL_LIGHT0, GL_POSITION, green_light_pos);
-    //glLightfv(GL_LIGHT1, GL_DIFFUSE, green_light_diffuse);
+    storedColor[0] = 0.0f;
+    storedColor[1] = 0.0f;
+    storedColor[2] = 1.0f;
+}
 
-    //glutPostRedisplay();
+void changeLightsColorToRed() {
 
-    glLightfv(GL_LIGHT1, GL_POSITION, green_light_pos);
-    glLightfv(GL_LIGHT1, GL_DIFFUSE, green_light_diffuse);
+    storedColor[0] = 1.0f;
+    storedColor[1] = 0.0f;
+    storedColor[2] = 0.0f;
 }
 
 void changeLightsLabToGreen(){
@@ -552,15 +563,13 @@ void changeLightsLabToGreen(){
 void menu(int value){
     switch (value) {
         case 0:
-            highlightOption = 0;
+            changeLightsColorToRed();
             break;
         case 1:
-            highlightOption = 1;
             changeLightsColorToGreen();
             break;
         case 2:
-            highlightOption = 2;
-            //changeLightsColorToBlue();
+            changeLightsColorToBlue();
             break;
         default:
             break;
@@ -596,7 +605,6 @@ void desenhaAngVisao(Camera *cam)
     glRotatef(GRAUS(cam->dir_long),0,1,0);
     float angulo = GRAUS(modelo.objeto.dir);
     glRotatef(angulo, 0, 1, 0);
-
 
     glBegin(GL_TRIANGLES);
         glVertex3f(0,0,0);
@@ -789,12 +797,12 @@ void displayNavigateSubwindow()
         glPopMatrix();
 
         //desenhaPersonagem();
-
+        //desenhaAngVisao(&estado.camera);
         glDisable(GL_LIGHTING);
 
         glPopMatrix();
     }
-
+    desenhaAngVisao(&estado.camera);
     desenhaBussola(glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT));
     glutSwapBuffers();
 }
@@ -826,12 +834,19 @@ void displayTopSubwindow()
     glCallList(modelo.chao[JANELA_TOP]);
 
     glPushMatrix();
-    glTranslatef(modelo.objeto.pos.x,modelo.objeto.pos.y,modelo.objeto.pos.z);
-    glRotatef(GRAUS(modelo.objeto.dir),0,1,0);
-    glRotatef(90,0,1,0);
-    glScalef(SCALE_PERSONAGEM,SCALE_PERSONAGEM,SCALE_PERSONAGEM);
-    desenhaPersonagem();
+        glTranslatef(modelo.objeto.pos.x,modelo.objeto.pos.y,modelo.objeto.pos.z);
+        glRotatef(GRAUS(modelo.objeto.dir),0,1,0);
+        glRotatef(90,0,1,0);
+        glScalef(SCALE_PERSONAGEM,SCALE_PERSONAGEM,SCALE_PERSONAGEM);
 
+        glDisable(GL_LIGHTING);
+
+        // Enable color material to track material properties with current color
+        glEnable(GL_COLOR_MATERIAL);
+            glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
+            glColor3fv(storedColor);
+            desenhaPersonagem();
+        glDisable(GL_COLOR_MATERIAL);
 
     glPopMatrix();
 
@@ -911,14 +926,20 @@ void timer(int value){
             if(isInsideMazeXBorders()){
                 modelo.objeto.pos.x = nx;
             }
-            else{
+            if(isInsideMazeXBorders() == -1){
                 modelo.objeto.pos.x = nx - 1; //Decrease a bit to return the car to the limits
+            }
+            if(isInsideMazeXBorders() == 0){
+                modelo.objeto.pos.x = nx + 1; //Decrease a bit to return the car to the limits
             }
             if(isInsideMazeZBorders()){
                 modelo.objeto.pos.z = nz;
             }
-            else{
+            if(isInsideMazeZBorders() == 0){
                 modelo.objeto.pos.z = nz - 1; //Decrease a bit to return the car to the limits
+            }
+            if(isInsideMazeZBorders() == -1){
+                modelo.objeto.pos.z = nz + 1; //Decrease a bit to return the car to the limits
             }
             andar = GL_TRUE;
         }
@@ -1163,9 +1184,9 @@ int main_lab(int argc, char **argv)
     createTextures(modelo.texID[JANELA_TOP]);
     createDisplayLists(JANELA_TOP);
 
+    createMenu();
     glutReshapeFunc(redisplayTopSubwindow);
     glutDisplayFunc(displayTopSubwindow);
-    createMenu();
 
     glutTimerFunc(estado.timer, timer, 0);
     glutKeyboardFunc(key);
