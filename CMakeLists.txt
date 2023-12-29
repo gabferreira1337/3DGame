@@ -5,9 +5,10 @@ set(CMAKE_C_STANDARD 11)
 
 add_executable(3DGame
         main.c
-        main_3dgame.c
-        main_3dgame.h
-        glm.h)
+       # main_3dgame.c
+        glm.c
+        labirinto.c
+)
 find_package(OpenGL REQUIRED)
 find_package(GLUT REQUIRED)
 

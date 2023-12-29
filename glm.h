@@ -1,5 +1,6 @@
 #ifndef INC_3DGAME_GLM_H
 #define INC_3DGAME_GLM_H
+
 /*
       glm.h
       Nate Robins, 1997, 2000
