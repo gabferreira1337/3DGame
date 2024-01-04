@@ -39,11 +39,15 @@
 #define CAMERA_ROTATION           0.1
 
 #define	OBJETO_ALTURA		        0.4
-#define OBJETO_VELOCIDADE	      0.5
+#define OBJETO_VELOCIDADE	      0.1
 #define OBJETO_ROTACAO		        5
 #define OBJETO_RAIO		          0.12
-#define SCALE_PERSONAGEM            1.5
+#define SCALE_PERSONAGEM            1.0
 #define EYE_ROTACAO			          1
+#define CAMERA_HEIGHT_OFFSET    1.5f  // Adjust as needed
+#define FOV_CONSTANT 60.0f  // Human eye natural
+
+
 
 #define NOME_TEXTURA_CUBOS        "../data/chao.ppm"
 #define NOME_TEXTURA_CHAO         "../data/chao.ppm"
@@ -88,21 +92,24 @@ typedef struct maze{
 
 } MAZE;
 
-typedef struct {
+typedef struct camera{
     Posicao  eye;
     GLfloat  dir_long;  // longitude olhar (esq-dir)
     GLfloat  dir_lat;   // latitude olhar	(cima-baixo)
     GLfloat  fov;
 } Camera;
-
+typedef struct player{
+    GLuint points;
+} PLAYER;
 typedef struct {
     Camera        camera;
+    GLboolean     difficulty;    //If set to 0 - normal , if set to 1 hardcore
     GLint         timer;
     GLint         mainWindow,topSubwindow,navigateSubwindow;
     Teclas        teclas;
     GLboolean     localViewer;
     GLuint        vista[NUM_JANELAS];
-    GLuint        jogo;         // 1 = on 0 = terminou o jogo
+    GLuint       jogo;         // if set to 1 = on , if set to 0 = game over if set to 2 = win
 } Estado;
 
 typedef struct {
@@ -120,6 +127,8 @@ typedef struct {
 
 Estado estado;
 Modelo modelo;
+Camera cam;     //camera sub-janela
+PLAYER player;
 
 GLfloat storedColor[3] = {1.0f, 0.0f, 0.0f}; // Initial color: Red
 
@@ -204,17 +213,20 @@ void init(void)
     estado.localViewer = 1;
     estado.vista[JANELA_TOP] = 0;
     estado.vista[JANELA_NAVIGATE] = 0;
-    estado.jogo = 1;
+    estado.jogo = -1;           //Game started
+    estado.difficulty = 0;
 
-    modelo.objeto.pos.x = 0;
+    modelo.objeto.pos.x = -8.7f;
     modelo.objeto.pos.y = OBJETO_ALTURA * .5;
-    modelo.objeto.pos.z = 0;
+    modelo.objeto.pos.z = 1.0f;
     modelo.objeto.dir = 0;
     modelo.objeto.vel = OBJETO_VELOCIDADE;
     modelo.time_timer = GAME_DURATION; //2 minutes
 
     modelo.xMouse = modelo.yMouse = -1;
     modelo.andar = GL_FALSE;
+
+    player.points = 0;
 
     glEnable(GL_DEPTH_TEST);
     glShadeModel(GL_SMOOTH);
@@ -253,6 +265,30 @@ void redisplayTopSubwindow(int width, int height)
     glMatrixMode(GL_MODELVIEW);
 
 }
+
+void updateCameraPosition() {
+    cam.eye.x = modelo.objeto.pos.x;
+    cam.eye.y = modelo.objeto.pos.y + CAMERA_HEIGHT_OFFSET; // Adjust the height if needed
+    cam.eye.z = modelo.objeto.pos.z;
+
+    // Assuming you have a target or look-at position for the camera
+   /* cam->center.x = obj->pos.x;
+    cam->center.y = obj->pos.y;
+    cam->center.z = obj->pos.z;*/
+
+    // Assuming the up vector is constant (you can adjust it if needed)
+  /*  cam->up.x = 0.0f;
+    cam->up.y = 1.0f;
+    cam->up.z = 0.0f;*/
+
+    // Assuming the object has orientation (dir) information
+    cam.dir_long = modelo.objeto.dir; // Adjust based on your object's structure
+    cam.dir_lat = 0.0f; // Set as needed
+
+    // Assuming fov is constant, you can adjust it if needed
+    cam.fov = FOV_CONSTANT;
+}
+
 
 void reshapeNavigateSubwindow(int width, int height)
 {
@@ -330,16 +366,15 @@ void desenhaPoligno (GLfloat a[], GLfloat b[], GLfloat c[], GLfloat d[], GLfloat
     glEnd();
 }
 
-void desenhaCubo (int tipo, GLuint texID)
-{
-    GLfloat vertices[][3] = {{-0.5, -0.5, -0.5},
-                             {0.5, -0.5, -0.5},
-                             {0.5, 0.5, -0.5},
-                             {-0.5, 0.5, -0.5},
-                             {-0.5, -0.5, 0.5},
-                             {0.5, -0.5, 0.5},
-                             {0.5, 0.5, 0.5},
-                             {-0.5, 0.5, 0.5}};
+void desenhaCubo (int tipo, GLuint texID){
+    GLfloat vertices[][3] = {{-0.5f, -0.5f, -0.5f},
+                             {0.5f, -0.5f, -0.5f},
+                             {0.5f, 0.5f, -0.5f},
+                             {-0.5f, 0.5f, -0.5f},
+                             {-0.5f, -0.5f, 0.5f},
+                             {0.5f, -0.5f, 0.5f},
+                             {0.5f, 0.5f, 0.5f},
+                             {-0.5f, 0.5f, 0.5f}};
 
     GLfloat normais[][3] = {{0, 0, -1},
                             {0, 1, 0},
@@ -421,18 +456,18 @@ void desenhaBussola(int width, int height)
 
     //desenhar bussola 2D
     glBegin(GL_TRIANGLES);
-    glColor4f(0,0,0,0.2);
+    glColor4f(0,0,0,0.2f);
 
         glVertex2f(0,15);
         glVertex2f(-6,0);
         glVertex2f(6,0);
-        glColor4f(1,1,1,0.2);
-        glVertex2f(6,0);
-        glVertex2f(-6,0);
-        glVertex2f(0,-15);
+        glColor4f(1.0f,1.0f,1.0f,0.2f);
+        glVertex2f(6.0f,0.0f);
+        glVertex2f(-6.0f,0.0f);
+        glVertex2f(0.0f,-15.0f);
         glEnd();
 
-        glLineWidth(2.0);
+        glLineWidth(2.0f);
         glColor3f(1,1,1);
         glDisable(GL_BLEND);
         strokeCenterString("N", 0, 20, 0, 0.1);
@@ -485,6 +520,21 @@ GLint isInsideMazeXBorders(){
     return 1;
 }
 
+void toggleFog() {
+    if (estado.difficulty == 1) {
+        glEnable(GL_FOG);
+        glFogi(GL_FOG_MODE, GL_LINEAR);  // Use linear fog
+        glFogf(GL_FOG_START, 10.0f);     // Fog start distance
+        glFogf(GL_FOG_END, 20.0f);       // Fog end distance
+
+        // Set fog color
+        GLfloat fogGreyColor[] = {0.5f, 0.5f, 0.5f, 1.0f};  // RGB: 0.5, 0.5, 0.5 (mid-grey)
+        glFogfv(GL_FOG_COLOR, fogGreyColor);
+    } else {
+        glDisable(GL_FOG);
+    }
+}
+
 GLint isInsideMazeZBorders(){
     int z = (int)(modelo.objeto.pos.z + MAZE_HEIGHT / 2);
     int z_down = (int)(modelo.objeto.pos.z - MAZE_HEIGHT / 2);
@@ -500,6 +550,36 @@ GLint isInsideMazeZBorders(){
     return 1;
 }
 
+void drawdifficulty(GLint width, GLint height) {
+    // Save the current viewport settings
+    GLint viewport[4];
+    glGetIntegerv(GL_VIEWPORT, viewport);
+
+    // Set viewport and orthographic projection for drawing difficulty
+    glViewport(width - 100, height - 30, 100, 30);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluOrtho2D(0, 100, 0, 30);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    glColor3f(0.0f, 0.0f, 1.0f);
+
+    // Position of the difficulty text in the top right corner
+    GLfloat difficultyPosX = 5.0f, difficultyPosY = 10.0f;
+
+    char difficultyText[100];
+
+    sprintf(difficultyText, "WINS: %d", player.points);
+
+    renderBitmapString(difficultyPosX, difficultyPosY, GLUT_BITMAP_HELVETICA_18, difficultyText);
+
+    // Restore the original viewport settings
+    glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+}
+
+
+
 void desenhaTimer(int width, int height) {
     glViewport(0, height - 30, 100, 30);
     glMatrixMode(GL_PROJECTION);
@@ -509,27 +589,24 @@ void desenhaTimer(int width, int height) {
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    glColor3f(0.0, 0.0, 1.0);
+    glColor3f(0.0f, 0.0f, 1.0f);
 
     // Posição do timer
-    int timerPosX = 10;
-    int timerPosY = 10;
+    GLfloat timerPosX = 10, diffiultyposX =  timerPosX + 20;
+    GLfloat timerPosY = 10, diffiultyposY =  timerPosY + 20;
 
     char timerText[200];
+    char difficultyText[200];
 
-    if(estado.jogo == 0){
-        sprintf(timerText, "GAME OVER!",modelo.time_timer);
-    }
-
-    else{
+    if(estado.jogo == 0 && estado.difficulty == 0){
+        sprintf(timerText, "GAME OVER!");
+    }else{
         sprintf(timerText, "Tempo restante: %d s",modelo.time_timer);
-
     }
     renderBitmapString(timerPosX, timerPosY, GLUT_BITMAP_HELVETICA_18, timerText);
 }
 
 void changeLightsColorToGreen() {
-
     storedColor[0] = 0.0f;
     storedColor[1] = 1.0f;
     storedColor[2] = 0.0f;
@@ -550,7 +627,7 @@ void changeLightsColorToRed() {
 }
 
 void changeLightsLabToGreen(){
-    GLfloat green_light_pos[4] = {0.0, 0.0, 0.0, 1.0}; // Set the position of the light source
+    GLfloat green_light_pos[4] = {0.0f, 0.0f, 0.0f, 1.0f}; // Set the position of the light source
     GLfloat green_light_diffuse[] = {0.0f, 1.0f, 0.0f, 1.0f}; // Set the light to green
 
     glEnable(GL_LIGHTING);
@@ -559,8 +636,12 @@ void changeLightsLabToGreen(){
     glLightfv(GL_LIGHT1, GL_POSITION, green_light_pos);
     glLightfv(GL_LIGHT1, GL_DIFFUSE, green_light_diffuse);
 }
+/**************************************
+******** MENUS **********
+**************************************/
 
-void menu(int value){
+
+void carColorMenu(int value){
     switch (value) {
         case 0:
             changeLightsColorToRed();
@@ -577,8 +658,24 @@ void menu(int value){
     glutPostRedisplay();
 }
 
+void mainMenu(int value){
+    switch (value) {
+        case 0:
+            changeLightsColorToRed();
+            break;
+        case 1:
+            changeLightsColorToGreen();
+            break;
+        case 2:
+            break;
+        default:
+            break;
+    }
+    glutPostRedisplay();
+}
+
 void createMenu() {
-    int rotationMenu = glutCreateMenu(menu);
+    int mainmenu = glutCreateMenu(mainMenu);
     glutAddMenuEntry("Car color: red", 0);
     glutAddMenuEntry("Car color: green", 1);
     glutAddMenuEntry("Car color: blue", 2);
@@ -608,8 +705,8 @@ void desenhaAngVisao(Camera *cam)
 
     glBegin(GL_TRIANGLES);
         glVertex3f(0,0,0);
-        glVertex3f(5*cos(RAD(cam->fov*ratio*0.5)),0,-5*sin(RAD(cam->fov*ratio*0.5)));
-        glVertex3f(5*cos(RAD(cam->fov*ratio*0.5)),0,5*sin(RAD(cam->fov*ratio*0.5)));
+        glVertex3f(5.0 * cos(RAD(cam->fov*ratio*0.5)),0,-5.0 * sin(RAD(cam->fov*ratio*0.5)));
+        glVertex3f(5 * cos(RAD(cam->fov*ratio*0.5)),0,5 * sin(RAD(cam->fov*ratio*0.5)));
     glEnd();
     glPopMatrix();
 
@@ -617,36 +714,23 @@ void desenhaAngVisao(Camera *cam)
     glDisable(GL_BLEND);
 }
 
-void desenhaModelo()
-{
-    glColor3f(0,1,0);
-    glutSolidCube(OBJETO_ALTURA);
-    glPushMatrix();
-    glColor3f(1,0,0);
-    glTranslatef(0,OBJETO_ALTURA*0.75,0);
-        glRotatef(GRAUS(estado.camera.dir_long-modelo.objeto.dir),0,1,0);
-        glutSolidCube(OBJETO_ALTURA*0.5);
-    glPopMatrix();
-}
 
-void desenhaLabirinto(GLuint texID)
-{
-    int i,j;
+void desenhaLabirinto(GLuint texID){
+    GLint i,j;
     glColor3f(0.8f, 0.8f, 0.8f);
 
     glPushMatrix();
-    glTranslatef(-MAZE_HEIGHT * 0.5, 0.5, -MAZE_WIDTH * 0.5);
+    glTranslatef(-MAZE_HEIGHT * 0.5f, 0.5f, -MAZE_WIDTH * 0.5f);
     for(i = 0; i < MAZE_HEIGHT; i++)
         for(j = 0; j < MAZE_WIDTH; j++)
             if(mazedata[i][j] == '*')
             {
                 glPushMatrix();
                 glTranslatef(i, 0 ,j);
-                desenhaCubo((i+j)%6, texID);
+                desenhaCubo((i+j) % 6, texID);
                 glPopMatrix();
             }
     glPopMatrix();
-
 }
 
 void desenhaChao(GLfloat dimensao, GLuint texID)
@@ -742,31 +826,32 @@ void mouseNavigateSubwindow(int button, int state, int x, int y)
     }
 }
 
-void setNavigateSubwindowCamera(Camera *cam, Objeto obj)
-{
+void setNavigateSubwindowCamera(Camera *cam, Objeto obj) {
     Posicao center;
 
-    if(estado.vista[JANELA_NAVIGATE])
-    {
+    if (estado.vista[JANELA_NAVIGATE]) {
+        // If navigation view is active, set camera position to object's position
         cam->eye.x = obj.pos.x;
         cam->eye.y = obj.pos.y;
         cam->eye.z = obj.pos.z;
-        center.x = obj.pos.x + cos(cam->dir_long) * cos(cam->dir_lat);
-        center.z = obj.pos.z + sin(-cam->dir_long) * cos(cam->dir_lat);
+        // Calculate the center based on the object's orientation
+        center.x = obj.pos.x + cos(obj.dir) * cos(cam->dir_lat);
+        center.z = obj.pos.z + sin(-obj.dir) * cos(cam->dir_lat);
         center.y = cam->eye.y + sin(cam->dir_lat);
-    }
-    else
-    {
+    } else {
+        // If navigation view is not active
         center.x = obj.pos.x;
         center.y = obj.pos.y + 0.5;
         center.z = obj.pos.z;
-        cam->eye.x = center.x - cos(cam->dir_long);
-        cam->eye.z = center.z - sin(-cam->dir_long);
+        // Calculate the eye position based on the object's orientation
+        cam->eye.x = center.x - cos(obj.dir);
+        cam->eye.z = center.z - sin(-obj.dir);
         cam->eye.y = center.y + 0.5;
+        // Set up the camera view using gluLookAt
     }
-
-    gluLookAt(cam->eye.x,cam->eye.y,cam->eye.z,center.x,center.y,center.z,0,1,0);
+    gluLookAt(cam->eye.x, cam->eye.y, cam->eye.z, center.x, center.y, center.z, 0, 1, 0);
 }
+
 
 
 void displayNavigateSubwindow()
@@ -781,36 +866,64 @@ void displayNavigateSubwindow()
 
     glCallList(modelo.mapa[JANELA_NAVIGATE]);
     glCallList(modelo.chao[JANELA_NAVIGATE]);
+    //toggleFog();
 
-    if(!estado.vista[JANELA_NAVIGATE])
-    {
+    // Enable or disable fog based on difficulty
+    if (estado.difficulty == 1) {
+        glEnable(GL_FOG);
+        glFogi(GL_FOG_MODE, GL_LINEAR);  // Use linear fog
+        glFogf(GL_FOG_START, 10.0f);     // Fog start distance
+        glFogf(GL_FOG_END, 20.0f);       // Fog end distance
+
+        // Set fog color
+        GLfloat fogGreyColor[] = {0.5f, 0.5f, 0.5f, 1.0f};  // RGB: 0.5, 0.5, 0.5 (mid-grey)
+        glFogfv(GL_FOG_COLOR, fogGreyColor);
+    } else {
+        glDisable(GL_FOG);
+    }
+
+    // Draw the character and compass if not in navigation view
+    if (!estado.vista[JANELA_NAVIGATE]) {
         glPushMatrix();
-        glTranslatef(modelo.objeto.pos.x,modelo.objeto.pos.y+0.3,modelo.objeto.pos.z);
-        glRotatef(GRAUS(modelo.objeto.dir),0,1,0);
-        glRotatef(90,0,1,0);
-        glScalef(SCALE_PERSONAGEM,SCALE_PERSONAGEM,SCALE_PERSONAGEM);
+        glTranslatef(modelo.objeto.pos.x, modelo.objeto.pos.y + 0.3f, modelo.objeto.pos.z);
+        glRotatef(GRAUS(modelo.objeto.dir), 0, 1, 0);
+        glRotatef(90, 0, 1, 0);
+        glScalef(SCALE_PERSONAGEM, SCALE_PERSONAGEM, SCALE_PERSONAGEM);
 
+        // Update camera position to follow car direction
+        updateCameraPosition();
+
+        // Enable lighting
         glEnable(GL_LIGHTING);
         glPushMatrix();
-        GLfloat light_pos[] = { 0.0, 2.0, -1.0, 0.0 };
+        GLfloat light_pos[] = { 0.0f, 2.0f, -1.0f, 0.0f };
         glLightfv(GL_LIGHT0, GL_POSITION, light_pos);
         glPopMatrix();
 
-        //desenhaPersonagem();
-        //desenhaAngVisao(&estado.camera);
+        // Draw character or other objects
+        // desenhaPersonagem();
+        // desenhaAngVisao(&estado.camera);
+
+        // Disable lighting
         glDisable(GL_LIGHTING);
 
         glPopMatrix();
     }
-    desenhaAngVisao(&estado.camera);
+
+    // Draw compass
+    glPushMatrix();
+    glRotatef(GRAUS(modelo.objeto.dir), 0, 1, 0);
+    glRotatef(90, 0, 1, 0);
     desenhaBussola(glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT));
+    glPopMatrix();
+
+    // Swap the front and back buffers
     glutSwapBuffers();
 }
 
 
 /////////////////////////////////////
 //topSubwindow
-
 void setTopSubwindowCamera(Camera *cam, Objeto obj)
 {
     cam->eye.x=obj.pos.x;
@@ -830,11 +943,14 @@ void displayTopSubwindow()
     setTopSubwindowCamera(&estado.camera,modelo.objeto);
     setLight();
 
+    toggleFog();
+
     glCallList(modelo.mapa[JANELA_TOP]);
     glCallList(modelo.chao[JANELA_TOP]);
 
+
     glPushMatrix();
-        glTranslatef(modelo.objeto.pos.x,modelo.objeto.pos.y,modelo.objeto.pos.z);
+    glTranslatef(modelo.objeto.pos.x,modelo.objeto.pos.y,modelo.objeto.pos.z);
         glRotatef(GRAUS(modelo.objeto.dir),0,1,0);
         glRotatef(90,0,1,0);
         glScalef(SCALE_PERSONAGEM,SCALE_PERSONAGEM,SCALE_PERSONAGEM);
@@ -858,8 +974,7 @@ void displayTopSubwindow()
 /////////////////////////////////////
 //mainWindow
 
-void redisplayAll(void)
-{
+void redisplayAll(void){
     glutSetWindow(estado.mainWindow);
     glutPostRedisplay();
     glutSetWindow(estado.topSubwindow);
@@ -873,6 +988,7 @@ void displayMainWindow()
     glClearColor(0.8f, 0.8f, 0.8f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     desenhaTimer(0, glutGet(GLUT_WINDOW_HEIGHT));
+    drawdifficulty(glutGet(GLUT_WINDOW_WIDTH),glutGet(GLUT_WINDOW_HEIGHT));
     glutSwapBuffers();
 }
 
@@ -880,6 +996,7 @@ void displayMainWindow()
 ******** CALLBACKS TIME/IDLE **********
 **************************************/
 void temporizador(int value) {
+
 
     if (modelo.time_timer > 0) {
         modelo.time_timer--;
@@ -892,81 +1009,111 @@ void temporizador(int value) {
     glutTimerFunc(1000, temporizador, 0);
 }
 
+void check_level_win(){
+    if(estado.difficulty == 1 && estado.jogo == 2){
+    player.points +=5;
+    }else if(estado.difficulty == 0 && estado.jogo == 2){
+        player.points +=1;
+    }
+}
+
+void change_direction(){
+    if (estado.teclas.left)
+    {
+        // rodar camara e objeto
+        modelo.objeto.dir += CAMERA_ROTATION;
+        if (GRAUS(modelo.objeto.dir) >= 360)
+        {
+            modelo.objeto.dir = 0;
+        }
+    }
+    if (estado.teclas.right)
+    {
+        // rodar camara e objeto
+        modelo.objeto.dir -= CAMERA_ROTATION;
+        if (GRAUS(modelo.objeto.dir) <= -360)
+        {
+            modelo.objeto.dir = 0;
+        }
+    }
+}
+
+void check_win(){
+    if(estado.jogo == 0){
+        player.points = 0;
+    }else if(estado.jogo == 1 && estado.difficulty == 1){
+        player.points +=5;
+    }else if(estado.jogo == 1 && estado.difficulty == 0){
+        player.points += 1;
+    }
+}
+
 
 /* Callback de temporizador */
 void timer(int value){
-        GLfloat nx = 0, nz = 0;
-        GLboolean andar = GL_FALSE;
+    GLfloat nx = 0, nz = 0;
+    GLboolean andar = GL_FALSE;
 
-        GLuint curr = glutGet(GLUT_ELAPSED_TIME);
-        // Calcula velocidade baseado no tempo passado
-        float velocidade = modelo.objeto.vel * (curr - modelo.prev) * 0.002;
+    GLuint curr = glutGet(GLUT_ELAPSED_TIME);
+    // Calcula velocidade baseado no tempo passado
+    float velocidade = modelo.objeto.vel * (curr - modelo.prev) * 0.002;
 
-        glutTimerFunc(estado.timer, timer, 0);
-        /* Acções do temporizador ...
-           Não colocar aqui primitivas OpenGL de desenho glBegin, glEnd, etc.
-         */
+    glutTimerFunc(estado.timer, timer, 0);
 
-        modelo.prev = curr;
+    modelo.prev = curr;
 
-        if (estado.teclas.up || estado.teclas.down)
+    if (estado.teclas.up || estado.teclas.down)
+    {
+        float forwardComponent = velocidade * cosf(RAD(GRAUS(modelo.objeto.dir)));
+        float sidewaysComponent = velocidade * sinf(RAD(GRAUS(modelo.objeto.dir)));
+
+        if (estado.teclas.down)
         {
-            float forwardComponent = velocidade * cosf(RAD(GRAUS(modelo.objeto.dir)));
-            float sidewaysComponent = velocidade * sinf(RAD(GRAUS(modelo.objeto.dir)));
-
-            if (estado.teclas.down)
-            {
-                forwardComponent = -forwardComponent;
-                sidewaysComponent = -sidewaysComponent;
-            }
-
-            nx = modelo.objeto.pos.x + forwardComponent;
-            nz = modelo.objeto.pos.z - sidewaysComponent; // Ajuste aqui para subtrair a componente lateral
-
-            if(isInsideMazeXBorders()){
-                modelo.objeto.pos.x = nx;
-            }
-            if(isInsideMazeXBorders() == -1){
-                modelo.objeto.pos.x = nx - 1; //Decrease a bit to return the car to the limits
-            }
-            if(isInsideMazeXBorders() == 0){
-                modelo.objeto.pos.x = nx + 1; //Decrease a bit to return the car to the limits
-            }
-            if(isInsideMazeZBorders()){
-                modelo.objeto.pos.z = nz;
-            }
-            if(isInsideMazeZBorders() == 0){
-                modelo.objeto.pos.z = nz - 1; //Decrease a bit to return the car to the limits
-            }
-            if(isInsideMazeZBorders() == -1){
-                modelo.objeto.pos.z = nz + 1; //Decrease a bit to return the car to the limits
-            }
-            andar = GL_TRUE;
+            forwardComponent = -forwardComponent;
+            sidewaysComponent = -sidewaysComponent;
         }
 
-        if (estado.teclas.left)
-        {
-            // rodar camara e objeto
-            modelo.objeto.dir += CAMERA_ROTATION;
-            if (GRAUS(modelo.objeto.dir) >= 360)
-            {
-                modelo.objeto.dir = 0;
-            }
+        nx = modelo.objeto.pos.x + forwardComponent;
+        nz = modelo.objeto.pos.z - sidewaysComponent; // Ajuste aqui para subtrair a componente lateral
+
+        if(isInsideMazeXBorders()){
+            modelo.objeto.pos.x = nx;
         }
-        if (estado.teclas.right)
-        {
-            // rodar camara e objeto
-            modelo.objeto.dir -= CAMERA_ROTATION;
-            if (GRAUS(modelo.objeto.dir) <= -360)
-            {
-                modelo.objeto.dir = 0;
-            }
+        if(isInsideMazeXBorders() == -1){
+            modelo.objeto.pos.x = nx - 1; //Decrease a bit to return the car to the limits
         }
+        if(isInsideMazeXBorders() == 0){
+            modelo.objeto.pos.x = nx + 1; //Decrease a bit to return the car to the limits
+        }
+        if(isInsideMazeZBorders()){
+            modelo.objeto.pos.z = nz;
+        }
+        if(isInsideMazeZBorders() == 0){
+            modelo.objeto.pos.z = nz - 1; //Decrease a bit to return the car to the limits
+        }
+        if(isInsideMazeZBorders() == -1){
+            modelo.objeto.pos.z = nz + 1; //Decrease a bit to return the car to the limits
+        }
+        andar = GL_TRUE;
+    }
+
+        //Change object and camera direction
+         change_direction();
+        check_win();
+    const int exitX = MAZE_HEIGHT - 1;  // Assuming exit is at the last row
+    const int exitZ = MAZE_WIDTH - 1;   // Assuming exit is at the last column
+        if (modelo.objeto.pos.x == exitX && modelo.objeto.pos.z == exitZ) {
+        // Player reached the exit, set win condition
+        printf("Congratulations! You won!\n");
+        estado.jogo = 2;
+        // Add any additional actions you want to take upon winning
+    }
 
         //motionNavigateSubwindow(modelo.objeto.pos.x, modelo.objeto.pos.y);
 
         redisplayAll();
 }
+
 
 /**************************************
 *********** FUNÇÃO AJUDA **************
@@ -1029,6 +1176,18 @@ void key(unsigned char key, int x, int y)
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
             glEnable(GL_TEXTURE_2D);
             break;
+            //Restart game if click on R key
+        case 'r':
+        case 'R':
+            init();
+            glutPostRedisplay();
+            break;
+        case'Z':
+        case 'z':
+            //activate fog if 1
+            estado.difficulty = 1;
+            glutPostRedisplay();
+            break;
     }
 
     if (DEBUG)
@@ -1043,20 +1202,7 @@ void keyUp(unsigned char key, int x, int y)
 }
 
 /* Callback para interacção via teclas especiais (carregar na tecla) */
-void specialKey(int key, int x, int y)
-{
-    /* Ações sobre outras teclas especiais
-        GLUT_KEY_F1 ... GLUT_KEY_F12
-        GLUT_KEY_UP
-        GLUT_KEY_DOWN
-        GLUT_KEY_LEFT
-        GLUT_KEY_RIGHT
-        GLUT_KEY_PAGE_UP
-        GLUT_KEY_PAGE_DOWN
-        GLUT_KEY_HOME
-        GLUT_KEY_END
-        GLUT_KEY_INSERT */
-
+void specialKey(int key, int x, int y){
     switch (key) {
         case GLUT_KEY_UP:
             estado.teclas.up =GL_TRUE;
@@ -1155,8 +1301,7 @@ void createTextures(GLuint texID[])
 ************ FUNÇÃO MAIN **************
 **************************************/
 
-int main_lab(int argc, char **argv)
-{
+int main_lab(int argc, char **argv){
     glutInit(&argc, argv);
     glutInitWindowPosition(10, 10);
     glutInitWindowSize(800 + GAP * 3, 400 + GAP * 2);
