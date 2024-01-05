@@ -50,7 +50,7 @@
 
 
 
-#define NOME_TEXTURA_CUBOS        "../data/chao.ppm"
+#define NOME_TEXTURA_CUBOS        "../data/marble.ppm"
 #define NOME_TEXTURA_CHAO         "../data/chao.ppm"
 
 #define NUM_TEXTURAS              2
@@ -67,7 +67,7 @@
 
 #define NOME_PERSONAGEM         "../data/porsche.mtl"
 
-#define GAME_DURATION             120
+#define GAME_DURATION             600
 
 /**************************************
 ********** VARIÁVEIS GLOBAIS **********
@@ -227,8 +227,6 @@ void init(void)
     modelo.xMouse = modelo.yMouse = -1;
     modelo.andar = GL_FALSE;
 
-    player.points = 0;
-
     glEnable(GL_DEPTH_TEST);
     glShadeModel(GL_SMOOTH);
     glEnable(GL_POINT_SMOOTH);
@@ -351,18 +349,6 @@ void strokeCenterString(char *str,double x, double y, double z, double s)
 
 }
 
-GLboolean detectaColisao (GLfloat nx, GLfloat nz)
-{
-    int x = (int)(nx + 0.5);  // Round to the nearest integer
-    int z = (int)(nz + 0.5);
-
-    if (mazedata[z][x] == '*') {
-        return GL_TRUE; // Collision detected
-    }
-
-    return GL_FALSE; // No collision
-}
-
 void desenhaPoligno (GLfloat a[], GLfloat b[], GLfloat c[], GLfloat d[], GLfloat normal[], GLfloat tx, GLfloat ty)
 {
     glBegin(GL_POLYGON);
@@ -427,7 +413,7 @@ void desenhaCubo (int tipo, GLuint texID){
     desenhaPoligno(vertices[4], vertices[5], vertices[6], vertices[7], normais[4], tx, ty);
     desenhaPoligno(vertices[5], vertices[4], vertices[0], vertices[1], normais[5], tx, ty);
 
-    glBindTexture(GL_TEXTURE_2D, (GLuint) NULL);
+    glBindTexture(GL_TEXTURE_2D, 0);
 
 }
 
@@ -517,11 +503,11 @@ GLint isInsideMazeXBorders(){
     int x = (int)(modelo.objeto.pos.x + MAZE_WIDTH / 2);
     int x_left = (int)(modelo.objeto.pos.x - MAZE_WIDTH / 2);
 
-    if (x_left <= -MAZE_WIDTH + 2){
+    if (x_left <= -MAZE_WIDTH + 1){
         return 0;
     }
 
-    if(x >= MAZE_WIDTH - 2){
+    if(x >= MAZE_WIDTH - 1){
         return -1;
     }
     return 1;
@@ -615,7 +601,7 @@ void desenhaTimer(int width, int height) {
 
 void changeLightsColorToGreen() {
     storedColor[0] = 0.0f;
-    storedColor[1] = 1.0f;
+    storedColor[1] = 1.f;
     storedColor[2] = 0.0f;
 }
 
@@ -648,7 +634,7 @@ void changeLightsLabToGreen(){
 **************************************/
 
 
-void carColorMenu(int value){
+void mainMenu(int value){
     switch (value) {
         case 0:
             changeLightsColorToRed();
@@ -665,24 +651,8 @@ void carColorMenu(int value){
     glutPostRedisplay();
 }
 
-void mainMenu(int value){
-    switch (value) {
-        case 0:
-            changeLightsColorToRed();
-            break;
-        case 1:
-            changeLightsColorToGreen();
-            break;
-        case 2:
-            break;
-        default:
-            break;
-    }
-    glutPostRedisplay();
-}
-
 void createMenu() {
-    int mainmenu = glutCreateMenu(mainMenu);
+    glutCreateMenu(mainMenu);
     glutAddMenuEntry("Car color: red", 0);
     glutAddMenuEntry("Car color: green", 1);
     glutAddMenuEntry("Car color: blue", 2);
@@ -1046,13 +1016,64 @@ void change_direction(){
 
 void check_win(){
     if(estado.jogo == 0){
-        player.points = 0;
-    }else if(estado.jogo == 1 && estado.difficulty == 1){
-        player.points +=5;
-    }else if(estado.jogo == 1 && estado.difficulty == 0){
+        //player.points = 0;
+    }
+    if(estado.jogo == 2 && estado.difficulty == 1){
+        player.points += 5;
+    }
+    if(estado.jogo == 2 && estado.difficulty == 0){
         player.points += 1;
     }
 }
+
+/*int checkCollision(float nx, float nz) {
+    int cellX = abs((nx));
+    int cellZ = abs((nz));
+
+    printf("cellX = %d, cellZ = %d, Matrix data: %c\n", cellX, cellZ, mazedata[cellX][cellZ]);
+
+    for (int i = cellZ - SCALE_PERSONAGEM; i <= cellZ + SCALE_PERSONAGEM; ++i) {
+        for (int j = cellX - SCALE_PERSONAGEM; j <= cellX + SCALE_PERSONAGEM; ++j) {
+            if (i >= 0 && i < MAZE_HEIGHT && j >= 0 && j < MAZE_WIDTH) {
+                if (mazedata[i][j] == '*') {
+                    return 1; // Collision detected
+                }
+            }
+        }
+    }
+    return 0; // No collision
+}*/
+
+int checkCollision(float carX, float carZ) {
+    GLfloat cubeSize = 0.5f; // Cube size
+    GLfloat halfCubeSize = cubeSize / 2.0f; // Half of the cube size
+
+    // Loop through each cube in the maze
+    for (int i = 0; i < MAZE_HEIGHT; ++i) {
+        for (int j = 0; j < MAZE_WIDTH; ++j) {
+            if (mazedata[i][j] == '*') {
+
+                GLfloat cubeX = i - SCALE_PERSONAGEM - MAZE_HEIGHT * 0.5f; // Cube's face X
+                GLfloat cubeZ = j - SCALE_PERSONAGEM - MAZE_WIDTH * 0.5f; // Cube's face Z
+
+                // Check collision between car and cube
+                if (carX + halfCubeSize >= cubeX - halfCubeSize &&
+                    carX - halfCubeSize <= cubeX + halfCubeSize &&
+                    carZ + halfCubeSize >= cubeZ - halfCubeSize &&
+                    carZ - halfCubeSize <= cubeZ + halfCubeSize) {
+                    return 1; // Collision detected
+                }
+            }
+        }
+    }
+    return 0; // No collision
+}/**/
+
+
+
+
+
+
 
 
 /* Callback de temporizador */
@@ -1080,39 +1101,58 @@ void timer(int value){
         }
 
         nx = modelo.objeto.pos.x + forwardComponent;
-        nz = modelo.objeto.pos.z - sidewaysComponent; // Ajuste aqui para subtrair a componente lateral
+        nz = modelo.objeto.pos.z - sidewaysComponent;
 
-        if(isInsideMazeXBorders()){
+        printf("nx = %f, nz = %f\n", nx, nz );
+
+        if(!checkCollision(nx, nz)){
+           /* if (isInsideMazeXBorders()) {
+                modelo.objeto.pos.x = nx;
+            }
+            if (isInsideMazeXBorders() == -1) {
+                modelo.objeto.pos.x = nx - 1; //Decrease a bit to return the car to the limits
+            }
+            if (isInsideMazeXBorders() == 0) {
+                modelo.objeto.pos.x = nx + 1; //Decrease a bit to return the car to the limits
+            }
+            if (isInsideMazeZBorders()) {
+                modelo.objeto.pos.z = nz;
+            }
+            if (isInsideMazeZBorders() == 0) {
+                modelo.objeto.pos.z = nz - 1; //Decrease a bit to return the car to the limits
+            }
+            if (isInsideMazeZBorders() == -1) {
+                modelo.objeto.pos.z = nz + 1; //Decrease a bit to return the car to the limits
+            }*/
+
             modelo.objeto.pos.x = nx;
-        }
-        if(isInsideMazeXBorders() == -1){
-            modelo.objeto.pos.x = nx - 1; //Decrease a bit to return the car to the limits
-        }
-        if(isInsideMazeXBorders() == 0){
-            modelo.objeto.pos.x = nx + 1; //Decrease a bit to return the car to the limits
-        }
-        if(isInsideMazeZBorders()){
             modelo.objeto.pos.z = nz;
+
+            andar = GL_TRUE;
+
         }
-        if(isInsideMazeZBorders() == 0){
-            modelo.objeto.pos.z = nz - 1; //Decrease a bit to return the car to the limits
+        else {
+            andar = GL_FALSE;
+            printf("Collision!\n");
         }
-        if(isInsideMazeZBorders() == -1){
-            modelo.objeto.pos.z = nz + 1; //Decrease a bit to return the car to the limits
-        }
-        andar = GL_TRUE;
+
     }
 
         //Change object and camera direction
         change_direction();
-        check_win();
-        const int exitX = MAZE_HEIGHT - 1;  // Assuming exit is at the last row
-        const int exitZ = MAZE_WIDTH - 1;   // Assuming exit is at the last column
-        if (modelo.objeto.pos.x == exitX && modelo.objeto.pos.z == exitZ) {
+
+        const int exitX = MAZE_WIDTH + 1;
+        if (isInsideMazeXBorders() == -1) {
         // Player reached the exit, set win condition
-        printf("Congratulations! You won!\n");
-        estado.jogo = 2;
-    }
+            printf("Congratulations! You won!\n");
+            estado.jogo = 2;
+            check_win();
+            init();
+            glutPostRedisplay();
+        }
+        if(isInsideMazeXBorders() == 0){
+            andar = GL_FALSE;
+        }
 
         motionNavigateSubwindow(modelo.objeto.pos.x, modelo.objeto.pos.y);
         redisplayAll();
@@ -1132,10 +1172,10 @@ void imprime_ajuda(void)
     printf("w,W   - Wireframe \n");
     printf("f,F   - Fill \n");
     printf("******* Movimento ******* \n");
-    printf("UP    - Avança (PARA IMPLEMENTAR) \n");
-    printf("DOWN  - Recua (PARA IMPLEMENTAR)\n");
-    printf("LEFT  - Vira para a direita (PARA IMPLEMENTAR)\n");
-    printf("RIGHT - Vira para a esquerda (PARA IMPLEMENTAR)\n");
+    printf("UP    - Avança  \n");
+    printf("DOWN  - Recua \n");
+    printf("LEFT  - Vira para a direita \n");
+    printf("RIGHT - Vira para a esquerda \n");
     printf("******* Camara ******* \n");
     printf("F1    - Alterna camara da janela da Esquerda \n");
     printf("F2    - Alterna camara da janela da Direita \n");
@@ -1279,26 +1319,44 @@ void specialKeyUp(int key, int x, int y)
 
 void createTextures(GLuint texID[])
 {
-    unsigned char *image = NULL;
+    unsigned char *image_chao = NULL, *image_cubos = NULL;
     int w, h, bpp;
 
     glGenTextures(NUM_TEXTURAS,texID);
 
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-    image = glmReadPPM(NOME_TEXTURA_CHAO, &w, &h);
-    if(image)
+    image_chao = glmReadPPM(NOME_TEXTURA_CHAO, &w, &h);
+    image_cubos = glmReadPPM(NOME_TEXTURA_CUBOS, &w, &h);
+    /*if(image)
     {
         glBindTexture(GL_TEXTURE_2D, texID[ID_TEXTURA_CHAO]);
+        glBindTexture(GL_TEXTURE_2D, texID[ID_TEXTURA_CUBOS]);
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST );
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_NEAREST);
         glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
         gluBuild2DMipmaps(GL_TEXTURE_2D, 3, w, h, GL_RGB, GL_UNSIGNED_BYTE, image);
     }else{
-        printf("Textura %s não encontrada \n",NOME_TEXTURA_CHAO);
+        printf("Textura %s não encontrada \n", NOME_TEXTURA_CHAO);
+        exit(0);
+    }*/
+
+    if (image_chao && image_cubos) {
+        glBindTexture(GL_TEXTURE_2D, texID[ID_TEXTURA_CHAO]);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+        gluBuild2DMipmaps(GL_TEXTURE_2D, 3, w, h, GL_RGB, GL_UNSIGNED_BYTE, image_chao);
+
+        glBindTexture(GL_TEXTURE_2D, texID[ID_TEXTURA_CUBOS]);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+        gluBuild2DMipmaps(GL_TEXTURE_2D, 3, w, h, GL_RGB, GL_UNSIGNED_BYTE, image_cubos);
+    } else {
+        printf("Alguma textura não encontrada \n");
         exit(0);
     }
-
 }
 
 /**************************************
