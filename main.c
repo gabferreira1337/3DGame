@@ -9,7 +9,6 @@
 
 
 int main(int argc, char **argv){
-    //main_3DGame(argc, argv);
-    main_lab(argc, argv);
+    main_3Dgame(argc, argv);
    return 0;
 }

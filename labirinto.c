@@ -42,9 +42,10 @@
 #define OBJETO_VELOCIDADE	      0.1
 #define OBJETO_ROTACAO		        5
 #define OBJETO_RAIO		          0.12
-#define SCALE_PERSONAGEM            1.0
+#define SCALE_PERSONAGEM            0.5
 #define EYE_ROTACAO			          1
-#define CAMERA_HEIGHT_OFFSET    1.5f  // Adjust as needed
+#define CAMERA_HEIGHT_OFFSET    1.5f
+#define CAMERA_DISTANCE         5.0f
 #define FOV_CONSTANT 60.0f  // Human eye natural
 
 
@@ -96,14 +97,14 @@ typedef struct camera{
     Posicao  eye;
     GLfloat  dir_long;  // longitude olhar (esq-dir)
     GLfloat  dir_lat;   // latitude olhar	(cima-baixo)
-    GLfloat  fov;
+    GLfloat  fov;   /// power up
 } Camera;
 typedef struct player{
     GLuint points;
 } PLAYER;
 typedef struct {
     Camera        camera;
-    GLboolean     difficulty;    //If set to 0 - normal , if set to 1 hardcore
+    GLboolean     difficulty;    //If set to 0 - normal , if set to 1 hardcore mode
     GLint         timer;
     GLint         mainWindow,topSubwindow,navigateSubwindow;
     Teclas        teclas;
@@ -144,13 +145,13 @@ char mazedata [MAZE_HEIGHT][MAZE_WIDTH] = {
         "  *           *  ** **",
         "  *     * *** ****   *",
         "  ***   *   *    **  *",
-        "  *   ****  *      ***",
+        "  *   ****  *       **",
         "  ********  **** *   *",
         "  *            * *****",
         "  *     *      * *   *",
         "  ** ** *    *** **  *",
-        "  *   *      *   **  *",
-        "  *  * **  **** **   *",
+        "  *   *      *   ** -*",
+        "  *  * **  **** ** - *",
         "  ***  ***  **       *",
         "  * *   *   *    **  *",
         "  *       *      *   *",
@@ -164,7 +165,7 @@ char mazedata [MAZE_HEIGHT][MAZE_WIDTH] = {
 
 void setLight()
 {
-    GLfloat light_pos[4] = {-5.0, 20.0, -8.0, 0.0};
+    GLfloat light_pos[4] = {-5.0f, 20.0f, -8.0f, 0.0f};
     GLfloat light_ambient[] = {0.2f, 0.2f, 0.2f, 1.0f};
     GLfloat light_diffuse[] = {0.8f, 0.8f, 0.8f, 1.0f};
     GLfloat light_specular[] = {0.5f, 0.5f, 0.5f, 1.0f};
@@ -266,28 +267,39 @@ void redisplayTopSubwindow(int width, int height)
 
 }
 
-void updateCameraPosition() {
+//1st person
+void updateCameraPositionFirstPerson() {
     cam.eye.x = modelo.objeto.pos.x;
     cam.eye.y = modelo.objeto.pos.y + CAMERA_HEIGHT_OFFSET; // Adjust the height if needed
     cam.eye.z = modelo.objeto.pos.z;
 
-    // Assuming you have a target or look-at position for the camera
    /* cam->center.x = obj->pos.x;
     cam->center.y = obj->pos.y;
     cam->center.z = obj->pos.z;*/
 
-    // Assuming the up vector is constant (you can adjust it if needed)
   /*  cam->up.x = 0.0f;
     cam->up.y = 1.0f;
     cam->up.z = 0.0f;*/
 
-    // Assuming the object has orientation (dir) information
-    cam.dir_long = modelo.objeto.dir; // Adjust based on your object's structure
-    cam.dir_lat = 0.0f; // Set as needed
+    cam.dir_long = modelo.objeto.dir;
+    cam.dir_lat = 0.0f;
 
-    // Assuming fov is constant, you can adjust it if needed
     cam.fov = FOV_CONSTANT;
 }
+
+//3rd Person
+void updateCameraPosition() {
+    // Set the camera position behind and slightly above the object
+    cam.eye.x = modelo.objeto.pos.x - CAMERA_DISTANCE * sin(modelo.objeto.dir);
+    cam.eye.y = modelo.objeto.pos.y + CAMERA_HEIGHT_OFFSET;
+    cam.eye.z = modelo.objeto.pos.z - CAMERA_DISTANCE * cos(modelo.objeto.dir);
+
+    cam.dir_long = modelo.objeto.dir;
+    cam.dir_lat = 0.0f;
+
+    cam.fov = FOV_CONSTANT;
+}
+
 
 
 void reshapeNavigateSubwindow(int width, int height)
@@ -391,19 +403,19 @@ void desenhaCubo (int tipo, GLuint texID){
             tx=0,ty=0;
             break;
         case 1:
-            tx=0,ty=0.25;
+            tx=0,ty=0.25f;
             break;
         case 2:
-            tx=0,ty=0.5;
+            tx=0,ty=0.5f;
             break;
         case 3:
-            tx=0,ty=0.75;
+            tx=0,ty=0.75f;
             break;
         case 4:
-            tx=0.25,ty=0;
+            tx=0.25f,ty=0;
             break;
         default:
-            tx=0.75,ty=0.75;
+            tx=0.75f,ty=0.75f;
     }
 
     glBindTexture(GL_TEXTURE_2D, texID);
@@ -420,7 +432,6 @@ void desenhaCubo (int tipo, GLuint texID){
 }
 
 void desenhaPersonagem(void) {
-
     if (!modelo.modelo) {
         modelo.modelo = glmReadOBJ(NOME_PERSONAGEM);
 
@@ -430,7 +441,7 @@ void desenhaPersonagem(void) {
 
         glmUnitize(modelo.modelo);
         glmFacetNormals(modelo.modelo);
-        glmVertexNormals(modelo.modelo, 90.0);
+        glmVertexNormals(modelo.modelo, 90.0f);
     }
 
     glmDraw(modelo.modelo, GLM_SMOOTH | GLM_MATERIAL);
@@ -451,8 +462,6 @@ void desenhaBussola(int width, int height)
     glDisable(GL_LIGHTING);
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_COLOR_MATERIAL);
-    glRotatef(GRAUS(estado.camera.dir_long + estado.camera.dir_lat) - 90,0,0,1);
-    //glRotatef(GRAUS(modelo.objeto.dir + 120),0,0,1);
 
     //desenhar bussola 2D
     glBegin(GL_TRIANGLES);
@@ -491,7 +500,6 @@ void renderBitmapString(float x, float y, void *font, char *string) {
 }
 
 GLboolean isInsideMazeBorders(){
-
     int x = (int)(modelo.objeto.pos.x + MAZE_WIDTH / 2);
     int z = (int)(modelo.objeto.pos.z + MAZE_HEIGHT / 2);
 
@@ -516,14 +524,13 @@ GLint isInsideMazeXBorders(){
     if(x >= MAZE_WIDTH - 2){
         return -1;
     }
-
     return 1;
 }
 
 void toggleFog() {
     if (estado.difficulty == 1) {
         glEnable(GL_FOG);
-        glFogi(GL_FOG_MODE, GL_LINEAR);  // Use linear fog
+        glFogi(GL_FOG_MODE, GL_EXP);  // Use linear fog
         glFogf(GL_FOG_START, 10.0f);     // Fog start distance
         glFogf(GL_FOG_END, 20.0f);       // Fog end distance
 
@@ -592,13 +599,13 @@ void desenhaTimer(int width, int height) {
     glColor3f(0.0f, 0.0f, 1.0f);
 
     // Posição do timer
-    GLfloat timerPosX = 10, diffiultyposX =  timerPosX + 20;
-    GLfloat timerPosY = 10, diffiultyposY =  timerPosY + 20;
+    GLfloat timerPosX = 10;
+    GLfloat timerPosY = 10;
 
     char timerText[200];
     char difficultyText[200];
 
-    if(estado.jogo == 0 && estado.difficulty == 0){
+    if(estado.jogo == 0){
         sprintf(timerText, "GAME OVER!");
     }else{
         sprintf(timerText, "Tempo restante: %d s",modelo.time_timer);
@@ -698,15 +705,15 @@ void desenhaAngVisao(Camera *cam)
 
     glPushMatrix();
     glTranslatef(cam->eye.x,OBJETO_ALTURA,cam->eye.z);
-    glColor4f(0,0,1,0.2);
+    glColor4f(0.0f,0.0f,1.0f,0.2f);
     glRotatef(GRAUS(cam->dir_long),0,1,0);
     float angulo = GRAUS(modelo.objeto.dir);
     glRotatef(angulo, 0, 1, 0);
 
     glBegin(GL_TRIANGLES);
         glVertex3f(0,0,0);
-        glVertex3f(5.0 * cos(RAD(cam->fov*ratio*0.5)),0,-5.0 * sin(RAD(cam->fov*ratio*0.5)));
-        glVertex3f(5 * cos(RAD(cam->fov*ratio*0.5)),0,5 * sin(RAD(cam->fov*ratio*0.5)));
+        glVertex3f(5.0f * cos(RAD(cam->fov*ratio*0.5f)),0,-5.0f * sin(RAD(cam->fov*ratio*0.5)));
+        glVertex3f(5.0f * cos(RAD(cam->fov*ratio*0.5f)),0,5.0f * sin(RAD(cam->fov*ratio*0.5)));
     glEnd();
     glPopMatrix();
 
@@ -726,9 +733,12 @@ void desenhaLabirinto(GLuint texID){
             if(mazedata[i][j] == '*')
             {
                 glPushMatrix();
-                glTranslatef(i, 0 ,j);
+                glTranslated(i, 0 ,j);
                 desenhaCubo((i+j) % 6, texID);
                 glPopMatrix();
+            }else if(mazedata[i][j] == '-'){//power up speed
+                //glutSolidSphere(2.0f, 20, 20);
+                desenhaCubo(10.0, texID);
             }
     glPopMatrix();
 }
@@ -854,8 +864,7 @@ void setNavigateSubwindowCamera(Camera *cam, Objeto obj) {
 
 
 
-void displayNavigateSubwindow()
-{
+void displayNavigateSubwindow(){
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -864,23 +873,11 @@ void displayNavigateSubwindow()
     setNavigateSubwindowCamera(&estado.camera, modelo.objeto);
     //setLight();
 
+    toggleFog();
+
     glCallList(modelo.mapa[JANELA_NAVIGATE]);
     glCallList(modelo.chao[JANELA_NAVIGATE]);
-    //toggleFog();
 
-    // Enable or disable fog based on difficulty
-    if (estado.difficulty == 1) {
-        glEnable(GL_FOG);
-        glFogi(GL_FOG_MODE, GL_LINEAR);  // Use linear fog
-        glFogf(GL_FOG_START, 10.0f);     // Fog start distance
-        glFogf(GL_FOG_END, 20.0f);       // Fog end distance
-
-        // Set fog color
-        GLfloat fogGreyColor[] = {0.5f, 0.5f, 0.5f, 1.0f};  // RGB: 0.5, 0.5, 0.5 (mid-grey)
-        glFogfv(GL_FOG_COLOR, fogGreyColor);
-    } else {
-        glDisable(GL_FOG);
-    }
 
     // Draw the character and compass if not in navigation view
     if (!estado.vista[JANELA_NAVIGATE]) {
@@ -889,6 +886,15 @@ void displayNavigateSubwindow()
         glRotatef(GRAUS(modelo.objeto.dir), 0, 1, 0);
         glRotatef(90, 0, 1, 0);
         glScalef(SCALE_PERSONAGEM, SCALE_PERSONAGEM, SCALE_PERSONAGEM);
+        // Enable color material to track material properties with current color
+
+        glDisable(GL_LIGHTING);
+
+        glEnable(GL_COLOR_MATERIAL);
+        glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
+        glColor3fv(storedColor);
+             desenhaPersonagem();
+        glDisable(GL_COLOR_MATERIAL);
 
         // Update camera position to follow car direction
         updateCameraPosition();
@@ -900,8 +906,6 @@ void displayNavigateSubwindow()
         glLightfv(GL_LIGHT0, GL_POSITION, light_pos);
         glPopMatrix();
 
-        // Draw character or other objects
-        // desenhaPersonagem();
         // desenhaAngVisao(&estado.camera);
 
         // Disable lighting
@@ -912,8 +916,8 @@ void displayNavigateSubwindow()
 
     // Draw compass
     glPushMatrix();
-    glRotatef(GRAUS(modelo.objeto.dir), 0, 1, 0);
     glRotatef(90, 0, 1, 0);
+    glRotatef(GRAUS(modelo.objeto.dir), 0, 1, 0);
     desenhaBussola(glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT));
     glPopMatrix();
 
@@ -997,12 +1001,14 @@ void displayMainWindow()
 **************************************/
 void temporizador(int value) {
 
-
     if (modelo.time_timer > 0) {
         modelo.time_timer--;
 
         if (modelo.time_timer == 0) {
             estado.jogo = 0;
+            modelo.objeto.vel = 0;
+        }else if(modelo.time_timer == 60) {
+            estado.difficulty = 1;
         }
     }
 
@@ -1056,7 +1062,7 @@ void timer(int value){
 
     GLuint curr = glutGet(GLUT_ELAPSED_TIME);
     // Calcula velocidade baseado no tempo passado
-    float velocidade = modelo.objeto.vel * (curr - modelo.prev) * 0.002;
+    float velocidade = modelo.objeto.vel * (curr - modelo.prev) * 0.006;
 
     glutTimerFunc(estado.timer, timer, 0);
 
@@ -1098,19 +1104,17 @@ void timer(int value){
     }
 
         //Change object and camera direction
-         change_direction();
+        change_direction();
         check_win();
-    const int exitX = MAZE_HEIGHT - 1;  // Assuming exit is at the last row
-    const int exitZ = MAZE_WIDTH - 1;   // Assuming exit is at the last column
+        const int exitX = MAZE_HEIGHT - 1;  // Assuming exit is at the last row
+        const int exitZ = MAZE_WIDTH - 1;   // Assuming exit is at the last column
         if (modelo.objeto.pos.x == exitX && modelo.objeto.pos.z == exitZ) {
         // Player reached the exit, set win condition
         printf("Congratulations! You won!\n");
         estado.jogo = 2;
-        // Add any additional actions you want to take upon winning
     }
 
-        //motionNavigateSubwindow(modelo.objeto.pos.x, modelo.objeto.pos.y);
-
+        motionNavigateSubwindow(modelo.objeto.pos.x, modelo.objeto.pos.y);
         redisplayAll();
 }
 
@@ -1301,7 +1305,7 @@ void createTextures(GLuint texID[])
 ************ FUNÇÃO MAIN **************
 **************************************/
 
-int main_lab(int argc, char **argv){
+int main_3Dgame(int argc, char **argv){
     glutInit(&argc, argv);
     glutInitWindowPosition(10, 10);
     glutInitWindowSize(800 + GAP * 3, 400 + GAP * 2);
