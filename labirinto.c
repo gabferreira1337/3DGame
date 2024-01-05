@@ -9,6 +9,8 @@
 
 #if defined(__APPLE__) || defined(MACOSX)
 #include <GLUT/glut.h>
+#include <unistd.h>
+
 #else
 #include <GL/glut.h>
 #endif
@@ -47,6 +49,7 @@
 #define CAMERA_HEIGHT_OFFSET    1.5f
 #define CAMERA_DISTANCE         5.0f
 #define FOV_CONSTANT 60.0f  // Human eye natural
+#define POWERUP_SIZE 0.5f
 
 
 
@@ -67,12 +70,11 @@
 
 #define NOME_PERSONAGEM         "../data/porsche.mtl"
 
-#define GAME_DURATION             600
+#define GAME_DURATION             120
 
 /**************************************
-********** VARIÁVEIS GLOBAIS **********
+*** VARIÁVEIS GLOBAIS E ESTRUTURAS *****
 **************************************/
-char* gameOverMessage = "game over";
 
 typedef struct {
     GLboolean   up,down,left,right;
@@ -97,10 +99,11 @@ typedef struct camera{
     Posicao  eye;
     GLfloat  dir_long;  // longitude olhar (esq-dir)
     GLfloat  dir_lat;   // latitude olhar	(cima-baixo)
-    GLfloat  fov;   /// power up
+    GLfloat  fov;
 } Camera;
 typedef struct player{
     GLuint points;
+    GLboolean powerup;      //if set to 1 power-up activated
 } PLAYER;
 typedef struct {
     Camera        camera;
@@ -138,8 +141,8 @@ char mazedata [MAZE_HEIGHT][MAZE_WIDTH] = {
         "                      ",
         "  ********    ********",
         "  *       *      *   *",
-        "  * * *** * *        *",
-        "  * **  * ** * *  *  *",
+        "  * * **    *        *",
+        "  *-**  * ** * *  * -*",
         "  *     *      *     *",
         "  *          *** **  *",
         "  *           *  ** **",
@@ -149,8 +152,8 @@ char mazedata [MAZE_HEIGHT][MAZE_WIDTH] = {
         "  ********  **** *   *",
         "  *            * *****",
         "  *     *      * *   *",
-        "  ** ** *    *** **  *",
-        "  *   *      *   ** -*",
+        "  **-** *    *** **  *",
+        "  *   *      *   **  *",
         "  *  * **  **** ** - *",
         "  ***  ***  **       *",
         "  * *   *   *    **  *",
@@ -227,6 +230,8 @@ void init(void)
     modelo.xMouse = modelo.yMouse = -1;
     modelo.andar = GL_FALSE;
 
+    player.powerup = 0;
+
     glEnable(GL_DEPTH_TEST);
     glShadeModel(GL_SMOOTH);
     glEnable(GL_POINT_SMOOTH);
@@ -267,21 +272,14 @@ void redisplayTopSubwindow(int width, int height)
 
 //1st person
 void updateCameraPositionFirstPerson() {
+    // Set the camera position
     cam.eye.x = modelo.objeto.pos.x;
     cam.eye.y = modelo.objeto.pos.y + CAMERA_HEIGHT_OFFSET; // Adjust the height if needed
     cam.eye.z = modelo.objeto.pos.z;
-
-   /* cam->center.x = obj->pos.x;
-    cam->center.y = obj->pos.y;
-    cam->center.z = obj->pos.z;*/
-
-  /*  cam->up.x = 0.0f;
-    cam->up.y = 1.0f;
-    cam->up.z = 0.0f;*/
-
+    //set camera direction
     cam.dir_long = modelo.objeto.dir;
     cam.dir_lat = 0.0f;
-
+    //Set camera field of view
     cam.fov = FOV_CONSTANT;
 }
 
@@ -291,17 +289,16 @@ void updateCameraPosition() {
     cam.eye.x = modelo.objeto.pos.x - CAMERA_DISTANCE * sin(modelo.objeto.dir);
     cam.eye.y = modelo.objeto.pos.y + CAMERA_HEIGHT_OFFSET;
     cam.eye.z = modelo.objeto.pos.z - CAMERA_DISTANCE * cos(modelo.objeto.dir);
-
+    //set camera direction
     cam.dir_long = modelo.objeto.dir;
     cam.dir_lat = 0.0f;
-
+    //Set camera field of view
     cam.fov = FOV_CONSTANT;
 }
 
 
 
-void reshapeNavigateSubwindow(int width, int height)
-{
+void reshapeNavigateSubwindow(int width, int height){
     // glViewport(botom, left, width, height)
     // Define parte da janela a ser utilizada pelo OpenGL
     glViewport(0, 0, (GLint) width, (GLint) height);
@@ -339,14 +336,13 @@ void strokeCenterString(char *str,double x, double y, double z, double s)
 {
     int i,n;
 
-    n = strlen(str);
+    n = (int) strlen(str);
     glPushMatrix();
     glTranslated(x-glutStrokeLength(GLUT_STROKE_ROMAN,(const unsigned char*)str)*0.5*s,y-119.05*0.5*s,z);
     glScaled(s,s,s);
     for(i=0;i<n;i++)
         glutStrokeCharacter(GLUT_STROKE_ROMAN,(int)str[i]);
     glPopMatrix();
-
 }
 
 void desenhaPoligno (GLfloat a[], GLfloat b[], GLfloat c[], GLfloat d[], GLfloat normal[], GLfloat tx, GLfloat ty)
@@ -355,11 +351,11 @@ void desenhaPoligno (GLfloat a[], GLfloat b[], GLfloat c[], GLfloat d[], GLfloat
     glNormal3fv(normal);
     glTexCoord2f(tx+0,ty+0);
     glVertex3fv(a);
-    glTexCoord2f(tx+0,ty+0.25);
+    glTexCoord2f(tx+0,ty+0.25f);
     glVertex3fv(b);
-    glTexCoord2f(tx+0.25,ty+0.25);
+    glTexCoord2f(tx+0.25f,ty+0.25f);
     glVertex3fv(c);
-    glTexCoord2f(tx+0.25,ty+0);
+    glTexCoord2f(tx+0.25f,ty+0);
     glVertex3fv(d);
     glEnd();
 }
@@ -516,7 +512,7 @@ GLint isInsideMazeXBorders(){
 void toggleFog() {
     if (estado.difficulty == 1) {
         glEnable(GL_FOG);
-        glFogi(GL_FOG_MODE, GL_EXP);  // Use linear fog
+        glFogi(GL_FOG_MODE, GL_EXP);        // Use exponential fog
         glFogf(GL_FOG_START, 10.0f);     // Fog start distance
         glFogf(GL_FOG_END, 20.0f);       // Fog end distance
 
@@ -592,7 +588,7 @@ void desenhaTimer(int width, int height) {
     char difficultyText[200];
 
     if(estado.jogo == 0){
-        sprintf(timerText, "GAME OVER!");
+        sprintf(timerText, "GAME OVER! PRESS R TO RESTART");
     }else{
         sprintf(timerText, "Tempo restante: %d s",modelo.time_timer);
     }
@@ -707,11 +703,15 @@ void desenhaLabirinto(GLuint texID){
                 desenhaCubo((i+j) % 6, texID);
                 glPopMatrix();
             }else if(mazedata[i][j] == '-'){//power up speed
-                //glutSolidSphere(2.0f, 20, 20);
-                desenhaCubo(10.0, texID);
+                glPushMatrix();
+                glTranslated(i, 0 ,j);
+                glutSolidSphere(POWERUP_SIZE, 20, 20);
+                glPopMatrix();
             }
+
     glPopMatrix();
 }
+
 
 void desenhaChao(GLfloat dimensao, GLuint texID)
 {
@@ -966,6 +966,15 @@ void displayMainWindow()
     glutSwapBuffers();
 }
 
+void check_level_win(){
+    if(estado.difficulty == 1 && estado.jogo == 2){
+        player.points +=5;
+    }else if(estado.difficulty == 0 && estado.jogo == 2){
+        player.points +=1;
+    }
+}
+
+
 /**************************************
 ******** CALLBACKS TIME/IDLE **********
 **************************************/
@@ -977,21 +986,16 @@ void temporizador(int value) {
         if (modelo.time_timer == 0) {
             estado.jogo = 0;
             modelo.objeto.vel = 0;
+            player.points = 0;
         }else if(modelo.time_timer == 60) {
             estado.difficulty = 1;
         }
     }
 
+    check_level_win();
     glutTimerFunc(1000, temporizador, 0);
 }
 
-void check_level_win(){
-    if(estado.difficulty == 1 && estado.jogo == 2){
-    player.points +=5;
-    }else if(estado.difficulty == 0 && estado.jogo == 2){
-        player.points +=1;
-    }
-}
 
 void change_direction(){
     if (estado.teclas.left)
@@ -1026,23 +1030,6 @@ void check_win(){
     }
 }
 
-/*int checkCollision(float nx, float nz) {
-    int cellX = abs((nx));
-    int cellZ = abs((nz));
-
-    printf("cellX = %d, cellZ = %d, Matrix data: %c\n", cellX, cellZ, mazedata[cellX][cellZ]);
-
-    for (int i = cellZ - SCALE_PERSONAGEM; i <= cellZ + SCALE_PERSONAGEM; ++i) {
-        for (int j = cellX - SCALE_PERSONAGEM; j <= cellX + SCALE_PERSONAGEM; ++j) {
-            if (i >= 0 && i < MAZE_HEIGHT && j >= 0 && j < MAZE_WIDTH) {
-                if (mazedata[i][j] == '*') {
-                    return 1; // Collision detected
-                }
-            }
-        }
-    }
-    return 0; // No collision
-}*/
 
 int checkCollision(float carX, float carZ) {
     GLfloat cubeSize = 0.5f; // Cube size
@@ -1083,7 +1070,7 @@ void timer(int value){
 
     GLuint curr = glutGet(GLUT_ELAPSED_TIME);
     // Calcula velocidade baseado no tempo passado
-    float velocidade = modelo.objeto.vel * (curr - modelo.prev) * 0.006;
+    float velocidade = modelo.objeto.vel * (curr - modelo.prev) * 0.012;
 
     glutTimerFunc(estado.timer, timer, 0);
 
@@ -1141,7 +1128,6 @@ void timer(int value){
         //Change object and camera direction
         change_direction();
 
-        const int exitX = MAZE_WIDTH + 1;
         if (isInsideMazeXBorders() == -1) {
         // Player reached the exit, set win condition
             printf("Congratulations! You won!\n");
@@ -1171,6 +1157,8 @@ void imprime_ajuda(void)
     printf("l,L   - Alterna o calculo luz entre Z e eye (GL_LIGHT_MODEL_LOCAL_VIEWER)\n");
     printf("w,W   - Wireframe \n");
     printf("f,F   - Fill \n");
+    printf("r,R   - Restart Game \n");
+    printf("z,Z   - Hardcore Mode \n");
     printf("******* Movimento ******* \n");
     printf("UP    - Avança  \n");
     printf("DOWN  - Recua \n");
@@ -1224,13 +1212,16 @@ void key(unsigned char key, int x, int y)
         case 'r':
         case 'R':
             init();
-            glutPostRedisplay();
+            player.points = 0;
             break;
-        case'Z':
-        case 'z':
+        case'z':
+        case 'Z':
             //activate fog if 1
             estado.difficulty = 1;
-            glutPostRedisplay();
+            break;
+        case'x':
+        case'X':
+            estado.difficulty = 0;
             break;
     }
 
@@ -1328,18 +1319,6 @@ void createTextures(GLuint texID[])
 
     image_chao = glmReadPPM(NOME_TEXTURA_CHAO, &w, &h);
     image_cubos = glmReadPPM(NOME_TEXTURA_CUBOS, &w, &h);
-    /*if(image)
-    {
-        glBindTexture(GL_TEXTURE_2D, texID[ID_TEXTURA_CHAO]);
-        glBindTexture(GL_TEXTURE_2D, texID[ID_TEXTURA_CUBOS]);
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST );
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_NEAREST);
-        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-        gluBuild2DMipmaps(GL_TEXTURE_2D, 3, w, h, GL_RGB, GL_UNSIGNED_BYTE, image);
-    }else{
-        printf("Textura %s não encontrada \n", NOME_TEXTURA_CHAO);
-        exit(0);
-    }*/
 
     if (image_chao && image_cubos) {
         glBindTexture(GL_TEXTURE_2D, texID[ID_TEXTURA_CHAO]);
@@ -1374,7 +1353,6 @@ int main_3Dgame(int argc, char **argv){
     imprime_ajuda();
 
     // Registar callbacks do GLUT da janela principal
-    init();
     glutReshapeFunc(reshapeMainWindow);
     glutDisplayFunc(displayMainWindow);
 
