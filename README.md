@@ -33,6 +33,8 @@ Maze Runner is a simple 3D game implemented in C using OpenGL. The game involves
 ## Usage
 - Use the arrow keys to navigate the car through the maze.
 - Right-click to access the menu and change the car's colors or reset the camera.
+- Use 'Z' key to activate hardcore mode of the game.
+- Catch power-ups to increase the speed of the car.
 
 ## Future Improvements
 - Adding maze generation algorithms for dynamic maze creation.
