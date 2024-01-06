@@ -82,3 +82,6 @@ dkms.conf
 /cmake-build-debug/.cmake/api/v1/query/toolchains-v1
 /cmake-build-debug/.cmake/api/v1/reply/toolchains-v1-c047d413f931e24066aa.json
 /.idea/vcs.xml
+CMakeLists.txt
+/data
+/CMakeLists.txt

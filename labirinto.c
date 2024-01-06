@@ -9,6 +9,8 @@
 
 #if defined(__APPLE__) || defined(MACOSX)
 #include <GLUT/glut.h>
+#include <unistd.h>
+
 #else
 #include <GL/glut.h>
 #endif
@@ -47,10 +49,11 @@
 #define CAMERA_HEIGHT_OFFSET    1.5f
 #define CAMERA_DISTANCE         5.0f
 #define FOV_CONSTANT 60.0f  // Human eye natural
+#define POWERUP_SIZE 0.5f
 
 
 
-#define NOME_TEXTURA_CUBOS        "../data/chao.ppm"
+#define NOME_TEXTURA_CUBOS        "../data/marble.ppm"
 #define NOME_TEXTURA_CHAO         "../data/chao.ppm"
 
 #define NUM_TEXTURAS              2
@@ -70,9 +73,8 @@
 #define GAME_DURATION             120
 
 /**************************************
-********** VARIÁVEIS GLOBAIS **********
+*** VARIÁVEIS GLOBAIS E ESTRUTURAS *****
 **************************************/
-char* gameOverMessage = "game over";
 
 typedef struct {
     GLboolean   up,down,left,right;
@@ -97,10 +99,11 @@ typedef struct camera{
     Posicao  eye;
     GLfloat  dir_long;  // longitude olhar (esq-dir)
     GLfloat  dir_lat;   // latitude olhar	(cima-baixo)
-    GLfloat  fov;   /// power up
+    GLfloat  fov;
 } Camera;
 typedef struct player{
     GLuint points;
+    GLboolean powerup;      //if set to 1 power-up activated
 } PLAYER;
 typedef struct {
     Camera        camera;
@@ -138,8 +141,8 @@ char mazedata [MAZE_HEIGHT][MAZE_WIDTH] = {
         "                      ",
         "  ********    ********",
         "  *       *      *   *",
-        "  * * *** * *        *",
-        "  * **  * ** * *  *  *",
+        "  * * **    *        *",
+        "  *-**  * ** * *  * -*",
         "  *     *      *     *",
         "  *          *** **  *",
         "  *           *  ** **",
@@ -149,8 +152,8 @@ char mazedata [MAZE_HEIGHT][MAZE_WIDTH] = {
         "  ********  **** *   *",
         "  *            * *****",
         "  *     *      * *   *",
-        "  ** ** *    *** **  *",
-        "  *   *      *   ** -*",
+        "  **-** *    *** **  *",
+        "  *   *      *   **  *",
         "  *  * **  **** ** - *",
         "  ***  ***  **       *",
         "  * *   *   *    **  *",
@@ -227,7 +230,7 @@ void init(void)
     modelo.xMouse = modelo.yMouse = -1;
     modelo.andar = GL_FALSE;
 
-    player.points = 0;
+    player.powerup = 0;
 
     glEnable(GL_DEPTH_TEST);
     glShadeModel(GL_SMOOTH);
@@ -269,21 +272,14 @@ void redisplayTopSubwindow(int width, int height)
 
 //1st person
 void updateCameraPositionFirstPerson() {
+    // Set the camera position
     cam.eye.x = modelo.objeto.pos.x;
     cam.eye.y = modelo.objeto.pos.y + CAMERA_HEIGHT_OFFSET; // Adjust the height if needed
     cam.eye.z = modelo.objeto.pos.z;
-
-   /* cam->center.x = obj->pos.x;
-    cam->center.y = obj->pos.y;
-    cam->center.z = obj->pos.z;*/
-
-  /*  cam->up.x = 0.0f;
-    cam->up.y = 1.0f;
-    cam->up.z = 0.0f;*/
-
+    //set camera direction
     cam.dir_long = modelo.objeto.dir;
     cam.dir_lat = 0.0f;
-
+    //Set camera field of view
     cam.fov = FOV_CONSTANT;
 }
 
@@ -293,17 +289,16 @@ void updateCameraPosition() {
     cam.eye.x = modelo.objeto.pos.x - CAMERA_DISTANCE * sin(modelo.objeto.dir);
     cam.eye.y = modelo.objeto.pos.y + CAMERA_HEIGHT_OFFSET;
     cam.eye.z = modelo.objeto.pos.z - CAMERA_DISTANCE * cos(modelo.objeto.dir);
-
+    //set camera direction
     cam.dir_long = modelo.objeto.dir;
     cam.dir_lat = 0.0f;
-
+    //Set camera field of view
     cam.fov = FOV_CONSTANT;
 }
 
 
 
-void reshapeNavigateSubwindow(int width, int height)
-{
+void reshapeNavigateSubwindow(int width, int height){
     // glViewport(botom, left, width, height)
     // Define parte da janela a ser utilizada pelo OpenGL
     glViewport(0, 0, (GLint) width, (GLint) height);
@@ -341,26 +336,13 @@ void strokeCenterString(char *str,double x, double y, double z, double s)
 {
     int i,n;
 
-    n = strlen(str);
+    n = (int) strlen(str);
     glPushMatrix();
     glTranslated(x-glutStrokeLength(GLUT_STROKE_ROMAN,(const unsigned char*)str)*0.5*s,y-119.05*0.5*s,z);
     glScaled(s,s,s);
     for(i=0;i<n;i++)
         glutStrokeCharacter(GLUT_STROKE_ROMAN,(int)str[i]);
     glPopMatrix();
-
-}
-
-GLboolean detectaColisao (GLfloat nx, GLfloat nz)
-{
-    int x = (int)(nx + 0.5);  // Round to the nearest integer
-    int z = (int)(nz + 0.5);
-
-    if (mazedata[z][x] == '*') {
-        return GL_TRUE; // Collision detected
-    }
-
-    return GL_FALSE; // No collision
 }
 
 void desenhaPoligno (GLfloat a[], GLfloat b[], GLfloat c[], GLfloat d[], GLfloat normal[], GLfloat tx, GLfloat ty)
@@ -369,11 +351,11 @@ void desenhaPoligno (GLfloat a[], GLfloat b[], GLfloat c[], GLfloat d[], GLfloat
     glNormal3fv(normal);
     glTexCoord2f(tx+0,ty+0);
     glVertex3fv(a);
-    glTexCoord2f(tx+0,ty+0.25);
+    glTexCoord2f(tx+0,ty+0.25f);
     glVertex3fv(b);
-    glTexCoord2f(tx+0.25,ty+0.25);
+    glTexCoord2f(tx+0.25f,ty+0.25f);
     glVertex3fv(c);
-    glTexCoord2f(tx+0.25,ty+0);
+    glTexCoord2f(tx+0.25f,ty+0);
     glVertex3fv(d);
     glEnd();
 }
@@ -427,7 +409,7 @@ void desenhaCubo (int tipo, GLuint texID){
     desenhaPoligno(vertices[4], vertices[5], vertices[6], vertices[7], normais[4], tx, ty);
     desenhaPoligno(vertices[5], vertices[4], vertices[0], vertices[1], normais[5], tx, ty);
 
-    glBindTexture(GL_TEXTURE_2D, (GLuint) NULL);
+    glBindTexture(GL_TEXTURE_2D, 0);
 
 }
 
@@ -517,11 +499,11 @@ GLint isInsideMazeXBorders(){
     int x = (int)(modelo.objeto.pos.x + MAZE_WIDTH / 2);
     int x_left = (int)(modelo.objeto.pos.x - MAZE_WIDTH / 2);
 
-    if (x_left <= -MAZE_WIDTH + 2){
+    if (x_left <= -MAZE_WIDTH + 1){
         return 0;
     }
 
-    if(x >= MAZE_WIDTH - 2){
+    if(x >= MAZE_WIDTH - 1){
         return -1;
     }
     return 1;
@@ -530,7 +512,7 @@ GLint isInsideMazeXBorders(){
 void toggleFog() {
     if (estado.difficulty == 1) {
         glEnable(GL_FOG);
-        glFogi(GL_FOG_MODE, GL_EXP);  // Use linear fog
+        glFogi(GL_FOG_MODE, GL_EXP);        // Use exponential fog
         glFogf(GL_FOG_START, 10.0f);     // Fog start distance
         glFogf(GL_FOG_END, 20.0f);       // Fog end distance
 
@@ -606,7 +588,7 @@ void desenhaTimer(int width, int height) {
     char difficultyText[200];
 
     if(estado.jogo == 0){
-        sprintf(timerText, "GAME OVER!");
+        sprintf(timerText, "GAME OVER! PRESS R TO RESTART");
     }else{
         sprintf(timerText, "Tempo restante: %d s",modelo.time_timer);
     }
@@ -615,7 +597,7 @@ void desenhaTimer(int width, int height) {
 
 void changeLightsColorToGreen() {
     storedColor[0] = 0.0f;
-    storedColor[1] = 1.0f;
+    storedColor[1] = 1.f;
     storedColor[2] = 0.0f;
 }
 
@@ -648,7 +630,7 @@ void changeLightsLabToGreen(){
 **************************************/
 
 
-void carColorMenu(int value){
+void mainMenu(int value){
     switch (value) {
         case 0:
             changeLightsColorToRed();
@@ -665,24 +647,8 @@ void carColorMenu(int value){
     glutPostRedisplay();
 }
 
-void mainMenu(int value){
-    switch (value) {
-        case 0:
-            changeLightsColorToRed();
-            break;
-        case 1:
-            changeLightsColorToGreen();
-            break;
-        case 2:
-            break;
-        default:
-            break;
-    }
-    glutPostRedisplay();
-}
-
 void createMenu() {
-    int mainmenu = glutCreateMenu(mainMenu);
+    glutCreateMenu(mainMenu);
     glutAddMenuEntry("Car color: red", 0);
     glutAddMenuEntry("Car color: green", 1);
     glutAddMenuEntry("Car color: blue", 2);
@@ -737,11 +703,15 @@ void desenhaLabirinto(GLuint texID){
                 desenhaCubo((i+j) % 6, texID);
                 glPopMatrix();
             }else if(mazedata[i][j] == '-'){//power up speed
-                //glutSolidSphere(2.0f, 20, 20);
-                desenhaCubo(10.0, texID);
+                glPushMatrix();
+                glTranslated(i, 0 ,j);
+                glutSolidSphere(POWERUP_SIZE, 20, 20);
+                glPopMatrix();
             }
+
     glPopMatrix();
 }
+
 
 void desenhaChao(GLfloat dimensao, GLuint texID)
 {
@@ -996,6 +966,15 @@ void displayMainWindow()
     glutSwapBuffers();
 }
 
+void check_level_win(){
+    if(estado.difficulty == 1 && estado.jogo == 2){
+        player.points +=5;
+    }else if(estado.difficulty == 0 && estado.jogo == 2){
+        player.points +=1;
+    }
+}
+
+
 /**************************************
 ******** CALLBACKS TIME/IDLE **********
 **************************************/
@@ -1007,21 +986,16 @@ void temporizador(int value) {
         if (modelo.time_timer == 0) {
             estado.jogo = 0;
             modelo.objeto.vel = 0;
+            player.points = 0;
         }else if(modelo.time_timer == 60) {
             estado.difficulty = 1;
         }
     }
 
+    check_level_win();
     glutTimerFunc(1000, temporizador, 0);
 }
 
-void check_level_win(){
-    if(estado.difficulty == 1 && estado.jogo == 2){
-    player.points +=5;
-    }else if(estado.difficulty == 0 && estado.jogo == 2){
-        player.points +=1;
-    }
-}
 
 void change_direction(){
     if (estado.teclas.left)
@@ -1046,13 +1020,47 @@ void change_direction(){
 
 void check_win(){
     if(estado.jogo == 0){
-        player.points = 0;
-    }else if(estado.jogo == 1 && estado.difficulty == 1){
-        player.points +=5;
-    }else if(estado.jogo == 1 && estado.difficulty == 0){
+        //player.points = 0;
+    }
+    if(estado.jogo == 2 && estado.difficulty == 1){
+        player.points += 5;
+    }
+    if(estado.jogo == 2 && estado.difficulty == 0){
         player.points += 1;
     }
 }
+
+
+int checkCollision(float carX, float carZ) {
+    GLfloat cubeSize = 0.5f; // Cube size
+    GLfloat halfCubeSize = cubeSize / 2.0f; // Half of the cube size
+
+    // Loop through each cube in the maze
+    for (int i = 0; i < MAZE_HEIGHT; ++i) {
+        for (int j = 0; j < MAZE_WIDTH; ++j) {
+            if (mazedata[i][j] == '*') {
+
+                GLfloat cubeX = i - SCALE_PERSONAGEM - MAZE_HEIGHT * 0.5f; // Cube's face X
+                GLfloat cubeZ = j - SCALE_PERSONAGEM - MAZE_WIDTH * 0.5f; // Cube's face Z
+
+                // Check collision between car and cube
+                if (carX + halfCubeSize >= cubeX - halfCubeSize &&
+                    carX - halfCubeSize <= cubeX + halfCubeSize &&
+                    carZ + halfCubeSize >= cubeZ - halfCubeSize &&
+                    carZ - halfCubeSize <= cubeZ + halfCubeSize) {
+                    return 1; // Collision detected
+                }
+            }
+        }
+    }
+    return 0; // No collision
+}/**/
+
+
+
+
+
+
 
 
 /* Callback de temporizador */
@@ -1062,7 +1070,7 @@ void timer(int value){
 
     GLuint curr = glutGet(GLUT_ELAPSED_TIME);
     // Calcula velocidade baseado no tempo passado
-    float velocidade = modelo.objeto.vel * (curr - modelo.prev) * 0.006;
+    float velocidade = modelo.objeto.vel * (curr - modelo.prev) * 0.012;
 
     glutTimerFunc(estado.timer, timer, 0);
 
@@ -1080,39 +1088,57 @@ void timer(int value){
         }
 
         nx = modelo.objeto.pos.x + forwardComponent;
-        nz = modelo.objeto.pos.z - sidewaysComponent; // Ajuste aqui para subtrair a componente lateral
+        nz = modelo.objeto.pos.z - sidewaysComponent;
 
-        if(isInsideMazeXBorders()){
+        printf("nx = %f, nz = %f\n", nx, nz );
+
+        if(!checkCollision(nx, nz)){
+           /* if (isInsideMazeXBorders()) {
+                modelo.objeto.pos.x = nx;
+            }
+            if (isInsideMazeXBorders() == -1) {
+                modelo.objeto.pos.x = nx - 1; //Decrease a bit to return the car to the limits
+            }
+            if (isInsideMazeXBorders() == 0) {
+                modelo.objeto.pos.x = nx + 1; //Decrease a bit to return the car to the limits
+            }
+            if (isInsideMazeZBorders()) {
+                modelo.objeto.pos.z = nz;
+            }
+            if (isInsideMazeZBorders() == 0) {
+                modelo.objeto.pos.z = nz - 1; //Decrease a bit to return the car to the limits
+            }
+            if (isInsideMazeZBorders() == -1) {
+                modelo.objeto.pos.z = nz + 1; //Decrease a bit to return the car to the limits
+            }*/
+
             modelo.objeto.pos.x = nx;
-        }
-        if(isInsideMazeXBorders() == -1){
-            modelo.objeto.pos.x = nx - 1; //Decrease a bit to return the car to the limits
-        }
-        if(isInsideMazeXBorders() == 0){
-            modelo.objeto.pos.x = nx + 1; //Decrease a bit to return the car to the limits
-        }
-        if(isInsideMazeZBorders()){
             modelo.objeto.pos.z = nz;
+
+            andar = GL_TRUE;
+
         }
-        if(isInsideMazeZBorders() == 0){
-            modelo.objeto.pos.z = nz - 1; //Decrease a bit to return the car to the limits
+        else {
+            andar = GL_FALSE;
+            printf("Collision!\n");
         }
-        if(isInsideMazeZBorders() == -1){
-            modelo.objeto.pos.z = nz + 1; //Decrease a bit to return the car to the limits
-        }
-        andar = GL_TRUE;
+
     }
 
         //Change object and camera direction
         change_direction();
-        check_win();
-        const int exitX = MAZE_HEIGHT - 1;  // Assuming exit is at the last row
-        const int exitZ = MAZE_WIDTH - 1;   // Assuming exit is at the last column
-        if (modelo.objeto.pos.x == exitX && modelo.objeto.pos.z == exitZ) {
+
+        if (isInsideMazeXBorders() == -1) {
         // Player reached the exit, set win condition
-        printf("Congratulations! You won!\n");
-        estado.jogo = 2;
-    }
+            printf("Congratulations! You won!\n");
+            estado.jogo = 2;
+            check_win();
+            init();
+            glutPostRedisplay();
+        }
+        if(isInsideMazeXBorders() == 0){
+            andar = GL_FALSE;
+        }
 
         motionNavigateSubwindow(modelo.objeto.pos.x, modelo.objeto.pos.y);
         redisplayAll();
@@ -1131,11 +1157,13 @@ void imprime_ajuda(void)
     printf("l,L   - Alterna o calculo luz entre Z e eye (GL_LIGHT_MODEL_LOCAL_VIEWER)\n");
     printf("w,W   - Wireframe \n");
     printf("f,F   - Fill \n");
+    printf("r,R   - Restart Game \n");
+    printf("z,Z   - Hardcore Mode \n");
     printf("******* Movimento ******* \n");
-    printf("UP    - Avança (PARA IMPLEMENTAR) \n");
-    printf("DOWN  - Recua (PARA IMPLEMENTAR)\n");
-    printf("LEFT  - Vira para a direita (PARA IMPLEMENTAR)\n");
-    printf("RIGHT - Vira para a esquerda (PARA IMPLEMENTAR)\n");
+    printf("UP    - Avança  \n");
+    printf("DOWN  - Recua \n");
+    printf("LEFT  - Vira para a direita \n");
+    printf("RIGHT - Vira para a esquerda \n");
     printf("******* Camara ******* \n");
     printf("F1    - Alterna camara da janela da Esquerda \n");
     printf("F2    - Alterna camara da janela da Direita \n");
@@ -1184,13 +1212,16 @@ void key(unsigned char key, int x, int y)
         case 'r':
         case 'R':
             init();
-            glutPostRedisplay();
+            player.points = 0;
             break;
-        case'Z':
-        case 'z':
+        case'z':
+        case 'Z':
             //activate fog if 1
             estado.difficulty = 1;
-            glutPostRedisplay();
+            break;
+        case'x':
+        case'X':
+            estado.difficulty = 0;
             break;
     }
 
@@ -1279,26 +1310,32 @@ void specialKeyUp(int key, int x, int y)
 
 void createTextures(GLuint texID[])
 {
-    unsigned char *image = NULL;
+    unsigned char *image_chao = NULL, *image_cubos = NULL;
     int w, h, bpp;
 
     glGenTextures(NUM_TEXTURAS,texID);
 
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-    image = glmReadPPM(NOME_TEXTURA_CHAO, &w, &h);
-    if(image)
-    {
+    image_chao = glmReadPPM(NOME_TEXTURA_CHAO, &w, &h);
+    image_cubos = glmReadPPM(NOME_TEXTURA_CUBOS, &w, &h);
+
+    if (image_chao && image_cubos) {
         glBindTexture(GL_TEXTURE_2D, texID[ID_TEXTURA_CHAO]);
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST );
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-        gluBuild2DMipmaps(GL_TEXTURE_2D, 3, w, h, GL_RGB, GL_UNSIGNED_BYTE, image);
-    }else{
-        printf("Textura %s não encontrada \n",NOME_TEXTURA_CHAO);
+        gluBuild2DMipmaps(GL_TEXTURE_2D, 3, w, h, GL_RGB, GL_UNSIGNED_BYTE, image_chao);
+
+        glBindTexture(GL_TEXTURE_2D, texID[ID_TEXTURA_CUBOS]);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+        gluBuild2DMipmaps(GL_TEXTURE_2D, 3, w, h, GL_RGB, GL_UNSIGNED_BYTE, image_cubos);
+    } else {
+        printf("Alguma textura não encontrada \n");
         exit(0);
     }
-
 }
 
 /**************************************
@@ -1316,7 +1353,6 @@ int main_3Dgame(int argc, char **argv){
     imprime_ajuda();
 
     // Registar callbacks do GLUT da janela principal
-    init();
     glutReshapeFunc(reshapeMainWindow);
     glutDisplayFunc(displayMainWindow);
 
