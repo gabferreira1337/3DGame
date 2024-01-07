@@ -49,7 +49,8 @@
 #define CAMERA_HEIGHT_OFFSET    1.5f
 #define CAMERA_DISTANCE         5.0f
 #define FOV_CONSTANT 60.0f  // Human eye natural
-#define POWERUP_SIZE 0.5f
+#define POWERUP_SIZE 0.25f
+#define CUBE_SIZE 0.5f
 
 
 
@@ -127,6 +128,7 @@ typedef struct {
     GLboolean     andar;
     GLuint        prev;
     GLuint        time_timer;
+    GLfloat       power_up_size;
 } Modelo;
 
 Estado estado;
@@ -226,6 +228,7 @@ void init(void)
     modelo.objeto.dir = 0;
     modelo.objeto.vel = OBJETO_VELOCIDADE;
     modelo.time_timer = GAME_DURATION; //2 minutes
+    modelo.power_up_size = POWERUP_SIZE;
 
     modelo.xMouse = modelo.yMouse = -1;
     modelo.andar = GL_FALSE;
@@ -696,8 +699,7 @@ void desenhaLabirinto(GLuint texID){
     glTranslatef(-MAZE_HEIGHT * 0.5f, 0.5f, -MAZE_WIDTH * 0.5f);
     for(i = 0; i < MAZE_HEIGHT; i++)
         for(j = 0; j < MAZE_WIDTH; j++)
-            if(mazedata[i][j] == '*')
-            {
+            if(mazedata[i][j] == '*'){
                 glPushMatrix();
                 glTranslated(i, 0 ,j);
                 desenhaCubo((i+j) % 6, texID);
@@ -705,7 +707,7 @@ void desenhaLabirinto(GLuint texID){
             }else if(mazedata[i][j] == '-'){//power up speed
                 glPushMatrix();
                 glTranslated(i, 0 ,j);
-                glutSolidSphere(POWERUP_SIZE, 20, 20);
+                glutSolidSphere(modelo.power_up_size, 20, 20);
                 glPopMatrix();
             }
 
@@ -990,6 +992,9 @@ void temporizador(int value) {
         }else if(modelo.time_timer == 60) {
             estado.difficulty = 1;
         }
+        if(player.powerup == 1){
+            modelo.time_timer += 5;     //+ 5 seconds
+        }
     }
 
     check_level_win();
@@ -1031,8 +1036,17 @@ void check_win(){
 }
 
 
+int checkCollision_powerup(float carX, float carZ, float objectX, float objectZ, float radius) {
+    float distanceSquared = pow(carX - objectX, 2) + pow(carZ - objectZ, 2);
+    float combinedRadiusSquared = pow(radius, 2);
+
+    return distanceSquared <= combinedRadiusSquared;
+}
+
+
+
 int checkCollision(float carX, float carZ) {
-    GLfloat cubeSize = 0.5f; // Cube size
+    GLfloat cubeSize = CUBE_SIZE; // Cube size
     GLfloat halfCubeSize = cubeSize / 2.0f; // Half of the cube size
 
     // Loop through each cube in the maze
@@ -1050,16 +1064,18 @@ int checkCollision(float carX, float carZ) {
                     carZ - halfCubeSize <= cubeZ + halfCubeSize) {
                     return 1; // Collision detected
                 }
+            }else if(mazedata[i][j] == '-'){
+                //Check if collided with power-up
+                GLfloat pupX = i  - MAZE_HEIGHT * POWERUP_SIZE; // Cube's face X
+                GLfloat pupZ = j - MAZE_WIDTH * POWERUP_SIZE; // Cube's face Z
+                if(checkCollision_powerup(carX, carZ, pupX, pupZ, POWERUP_SIZE) == 1){
+                    return 2; // Collision detected power-up
+                }
             }
         }
     }
-    return 0; // No collision
-}/**/
-
-
-
-
-
+    return 0;
+}
 
 
 
@@ -1070,61 +1086,44 @@ void timer(int value){
 
     GLuint curr = glutGet(GLUT_ELAPSED_TIME);
     // Calcula velocidade baseado no tempo passado
-    float velocidade = modelo.objeto.vel * (curr - modelo.prev) * 0.012;
+    float velocidade = modelo.objeto.vel * (curr - modelo.prev) * 0.012f;
 
     glutTimerFunc(estado.timer, timer, 0);
 
     modelo.prev = curr;
 
-    if (estado.teclas.up || estado.teclas.down)
-    {
+    if (estado.teclas.up || estado.teclas.down){
         float forwardComponent = velocidade * cosf(RAD(GRAUS(modelo.objeto.dir)));
         float sidewaysComponent = velocidade * sinf(RAD(GRAUS(modelo.objeto.dir)));
 
-        if (estado.teclas.down)
-        {
+        if (estado.teclas.down){
             forwardComponent = -forwardComponent;
             sidewaysComponent = -sidewaysComponent;
         }
-
         nx = modelo.objeto.pos.x + forwardComponent;
         nz = modelo.objeto.pos.z - sidewaysComponent;
 
-        printf("nx = %f, nz = %f\n", nx, nz );
+        //printf("nx = %f, nz = %f\n", nx, nz );
 
         if(!checkCollision(nx, nz)){
-           /* if (isInsideMazeXBorders()) {
-                modelo.objeto.pos.x = nx;
-            }
-            if (isInsideMazeXBorders() == -1) {
-                modelo.objeto.pos.x = nx - 1; //Decrease a bit to return the car to the limits
-            }
-            if (isInsideMazeXBorders() == 0) {
-                modelo.objeto.pos.x = nx + 1; //Decrease a bit to return the car to the limits
-            }
-            if (isInsideMazeZBorders()) {
-                modelo.objeto.pos.z = nz;
-            }
-            if (isInsideMazeZBorders() == 0) {
-                modelo.objeto.pos.z = nz - 1; //Decrease a bit to return the car to the limits
-            }
-            if (isInsideMazeZBorders() == -1) {
-                modelo.objeto.pos.z = nz + 1; //Decrease a bit to return the car to the limits
-            }*/
-
             modelo.objeto.pos.x = nx;
             modelo.objeto.pos.z = nz;
 
             andar = GL_TRUE;
-
+        }else{
+            if(checkCollision(nx, nz) == 2) {
+                modelo.objeto.pos.x = nx;
+                modelo.objeto.pos.z = nz;
+                player.powerup = 1;
+                modelo.time_timer += 5;
+                printf("power up !!!\n");
+                andar = GL_TRUE;
+            }else {
+                andar = GL_FALSE;
+                printf("Collision!\n");
+            }
         }
-        else {
-            andar = GL_FALSE;
-            printf("Collision!\n");
-        }
-
     }
-
         //Change object and camera direction
         change_direction();
 
