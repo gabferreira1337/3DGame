@@ -49,7 +49,9 @@
 #define CAMERA_HEIGHT_OFFSET    1.5f
 #define CAMERA_DISTANCE         5.0f
 #define FOV_CONSTANT 60.0f  // Human eye natural
-#define POWERUP_SIZE 0.5f
+#define POWERUP_SIZE 0.25f
+#define CUBE_SIZE 0.5f
+#define HARD_TIME 60 //start hardcore mode when 60 seconds left
 
 
 
@@ -127,6 +129,7 @@ typedef struct {
     GLboolean     andar;
     GLuint        prev;
     GLuint        time_timer;
+    GLfloat       power_up_size;
 } Modelo;
 
 Estado estado;
@@ -226,6 +229,7 @@ void init(void)
     modelo.objeto.dir = 0;
     modelo.objeto.vel = OBJETO_VELOCIDADE;
     modelo.time_timer = GAME_DURATION; //2 minutes
+    modelo.power_up_size = POWERUP_SIZE;
 
     modelo.xMouse = modelo.yMouse = -1;
     modelo.andar = GL_FALSE;
@@ -585,12 +589,13 @@ void desenhaTimer(int width, int height) {
     GLfloat timerPosY = 10;
 
     char timerText[200];
-    char difficultyText[200];
 
     if(estado.jogo == 0){
         sprintf(timerText, "GAME OVER! PRESS R TO RESTART");
+    }else if(estado.difficulty == 1){
+        sprintf(timerText, "Tempo restante: %d s HARDCORE MODE!!!",modelo.time_timer);
     }else{
-        sprintf(timerText, "Tempo restante: %d s",modelo.time_timer);
+        sprintf(timerText, "Tempo restante: %d s ",modelo.time_timer);
     }
     renderBitmapString(timerPosX, timerPosY, GLUT_BITMAP_HELVETICA_18, timerText);
 }
@@ -696,17 +701,18 @@ void desenhaLabirinto(GLuint texID){
     glTranslatef(-MAZE_HEIGHT * 0.5f, 0.5f, -MAZE_WIDTH * 0.5f);
     for(i = 0; i < MAZE_HEIGHT; i++)
         for(j = 0; j < MAZE_WIDTH; j++)
-            if(mazedata[i][j] == '*')
-            {
+            if(mazedata[i][j] == '*'){
                 glPushMatrix();
                 glTranslated(i, 0 ,j);
                 desenhaCubo((i+j) % 6, texID);
                 glPopMatrix();
-            }else if(mazedata[i][j] == '-'){//power up speed
-                glPushMatrix();
-                glTranslated(i, 0 ,j);
-                glutSolidSphere(POWERUP_SIZE, 20, 20);
-                glPopMatrix();
+            }else if(mazedata[i][j] == '-'){//power up
+                if(modelo.power_up_size != 0){
+                    glPushMatrix();
+                    glTranslated(i, 0 ,j);
+                    glutSolidSphere(modelo.power_up_size, 20, 20);
+                    glPopMatrix();
+                }
             }
 
     glPopMatrix();
@@ -979,7 +985,6 @@ void check_level_win(){
 ******** CALLBACKS TIME/IDLE **********
 **************************************/
 void temporizador(int value) {
-
     if (modelo.time_timer > 0) {
         modelo.time_timer--;
 
@@ -987,19 +992,25 @@ void temporizador(int value) {
             estado.jogo = 0;
             modelo.objeto.vel = 0;
             player.points = 0;
-        }else if(modelo.time_timer == 60) {
+        }else if(modelo.time_timer == HARD_TIME) {
             estado.difficulty = 1;
+        }
+        if(player.powerup == 1 && modelo.time_timer <= GAME_DURATION - 5){
+            modelo.power_up_size =0;
+            modelo.time_timer += 5;     //+ 5 seconds
+            player.powerup =0 ;
         }
     }
 
     check_level_win();
     glutTimerFunc(1000, temporizador, 0);
+
+    redisplayAll();
 }
 
 
 void change_direction(){
-    if (estado.teclas.left)
-    {
+    if (estado.teclas.left){
         // rodar camara e objeto
         modelo.objeto.dir += CAMERA_ROTATION;
         if (GRAUS(modelo.objeto.dir) >= 360)
@@ -1007,12 +1018,10 @@ void change_direction(){
             modelo.objeto.dir = 0;
         }
     }
-    if (estado.teclas.right)
-    {
+    if (estado.teclas.right){
         // rodar camara e objeto
         modelo.objeto.dir -= CAMERA_ROTATION;
-        if (GRAUS(modelo.objeto.dir) <= -360)
-        {
+        if (GRAUS(modelo.objeto.dir) <= -360){
             modelo.objeto.dir = 0;
         }
     }
@@ -1031,8 +1040,17 @@ void check_win(){
 }
 
 
+int checkCollision_powerup(float carX, float carZ, float objectX, float objectZ, float radius) {
+    float distanceSquared = pow(carX - objectX, 2) + pow(carZ - objectZ, 2);
+    float combinedRadiusSquared = pow(radius, 2);
+
+    return distanceSquared <= combinedRadiusSquared;
+}
+
+
+
 int checkCollision(float carX, float carZ) {
-    GLfloat cubeSize = 0.5f; // Cube size
+    GLfloat cubeSize = CUBE_SIZE; // Cube size
     GLfloat halfCubeSize = cubeSize / 2.0f; // Half of the cube size
 
     // Loop through each cube in the maze
@@ -1040,7 +1058,7 @@ int checkCollision(float carX, float carZ) {
         for (int j = 0; j < MAZE_WIDTH; ++j) {
             if (mazedata[i][j] == '*') {
 
-                GLfloat cubeX = i - SCALE_PERSONAGEM - MAZE_HEIGHT * 0.5f; // Cube's face X
+                GLfloat cubeX = i - SCALE_PERSONAGEM - MAZE_HEIGHT * cubeSize; // Cube's face X
                 GLfloat cubeZ = j - SCALE_PERSONAGEM - MAZE_WIDTH * 0.5f; // Cube's face Z
 
                 // Check collision between car and cube
@@ -1050,16 +1068,19 @@ int checkCollision(float carX, float carZ) {
                     carZ - halfCubeSize <= cubeZ + halfCubeSize) {
                     return 1; // Collision detected
                 }
+            }else if(mazedata[i][j] == '-'){
+                //Check if collided with power-up
+                GLfloat pupX = i - MAZE_HEIGHT * cubeSize; // Power-up X
+                GLfloat pupZ = j - MAZE_WIDTH * cubeSize; // Power-up Z
+                if(checkCollision_powerup(carX, carZ, pupX, pupZ, POWERUP_SIZE)){
+                    //printf("POWER_UP!!!\n");
+                    return 2; // Collision detected power-up
+                }
             }
         }
     }
-    return 0; // No collision
-}/**/
-
-
-
-
-
+    return 0;
+}
 
 
 
@@ -1070,59 +1091,44 @@ void timer(int value){
 
     GLuint curr = glutGet(GLUT_ELAPSED_TIME);
     // Calcula velocidade baseado no tempo passado
-    float velocidade = modelo.objeto.vel * (curr - modelo.prev) * 0.012;
+    float velocidade = modelo.objeto.vel * (curr - modelo.prev) * 0.012f;
 
     glutTimerFunc(estado.timer, timer, 0);
 
     modelo.prev = curr;
 
-    if (estado.teclas.up || estado.teclas.down)
-    {
+    if (estado.teclas.up || estado.teclas.down) {
         float forwardComponent = velocidade * cosf(RAD(GRAUS(modelo.objeto.dir)));
         float sidewaysComponent = velocidade * sinf(RAD(GRAUS(modelo.objeto.dir)));
 
-        if (estado.teclas.down)
-        {
+        if (estado.teclas.down) {
             forwardComponent = -forwardComponent;
             sidewaysComponent = -sidewaysComponent;
         }
-
         nx = modelo.objeto.pos.x + forwardComponent;
         nz = modelo.objeto.pos.z - sidewaysComponent;
 
-        printf("nx = %f, nz = %f\n", nx, nz );
+        //printf("nx = %f, nz = %f\n", nx, nz );
 
-        if(!checkCollision(nx, nz)){
-           /* if (isInsideMazeXBorders()) {
-                modelo.objeto.pos.x = nx;
-            }
-            if (isInsideMazeXBorders() == -1) {
-                modelo.objeto.pos.x = nx - 1; //Decrease a bit to return the car to the limits
-            }
-            if (isInsideMazeXBorders() == 0) {
-                modelo.objeto.pos.x = nx + 1; //Decrease a bit to return the car to the limits
-            }
-            if (isInsideMazeZBorders()) {
-                modelo.objeto.pos.z = nz;
-            }
-            if (isInsideMazeZBorders() == 0) {
-                modelo.objeto.pos.z = nz - 1; //Decrease a bit to return the car to the limits
-            }
-            if (isInsideMazeZBorders() == -1) {
-                modelo.objeto.pos.z = nz + 1; //Decrease a bit to return the car to the limits
-            }*/
-
+        int collisionResult = checkCollision(nx, nz);
+        if (collisionResult == 0) {
+            // No collision
             modelo.objeto.pos.x = nx;
             modelo.objeto.pos.z = nz;
-
             andar = GL_TRUE;
-
-        }
-        else {
+        } else if (collisionResult == 2) {
+            // Collision with power-up
+            modelo.power_up_size = 0;   //set power-up size to 0
+            modelo.objeto.pos.x = nx;
+            modelo.objeto.pos.z = nz;
+            player.powerup = 1;     //set flag to 1 when player hits power-up
+            printf("power up !!!\n");
+            andar = GL_TRUE;
+        } else {
+            // Other collision
             andar = GL_FALSE;
             printf("Collision!\n");
         }
-
     }
 
         //Change object and camera direction
@@ -1188,7 +1194,7 @@ void key(unsigned char key, int x, int y)
             break;
         case 'l':
         case 'L':
-            estado.localViewer=!estado.localViewer;
+            estado.localViewer = !estado.localViewer;
             break;
         case 'w':
         case 'W':
@@ -1214,10 +1220,12 @@ void key(unsigned char key, int x, int y)
             init();
             player.points = 0;
             break;
-        case'z':
+        case 'z':
         case 'Z':
             //activate fog if 1
+            if (modelo.time_timer >= 100) {
             estado.difficulty = 1;
+            }
             break;
         case'x':
         case'X':
