@@ -8,6 +8,8 @@ Maze Runner is a simple 3D game implemented in C using OpenGL. The game involves
 - **Car Color Customization:** Change the color of the car body and wheels through the right-click menu.
 - **Camera Control:** Adjust the camera angle using mouse movements.
 - **Collision Detection:** Prevent the car from moving through walls by detecting collisions.
+- **Power-ups:** Increase the speed of the car.
+- **Fog:** Low visibility.
 
 ## How to Play
 1. **Controls:**
@@ -15,6 +17,8 @@ Maze Runner is a simple 3D game implemented in C using OpenGL. The game involves
     - *Down Arrow Key:* Move the car backward.
     - *Left/Right Arrow Keys:* Rotate the car left or right.
     - *Mouse Drag:* Control the camera view angle.
+    - *'Z' key: Activate hardcore mode of the game.
+    - *'R' key: Restart the game.
 
 2. **Menu Options:**
     - *Right-Click Menu:* Change car colors or reset the camera angle.
@@ -42,11 +46,9 @@ Maze Runner is a simple 3D game implemented in C using OpenGL. The game involves
 ## Contributors
 - Gabriel Ferreira - https://github.com/gabferreira1337
 - Karol Henriques - https://github.com/KarolHenriques
-- Maria Inês Gomes - 
+- Maria Inês Gomes - https://github.com/Ines0611
 
 ## License
-This project is licensed under the [License Name] - see the [LICENSE](link-to-license-file) file for details.
+This project is licensed under the [MIT LICENSE] - see the [LICENSE](link-to-license-file) file for details.
 
 ---
-
-Feel free to update this README with additional details, instructions, or any specific contributions you've made to the project.
