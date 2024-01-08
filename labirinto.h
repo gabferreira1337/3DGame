@@ -3,6 +3,9 @@
 
 #include "glm.h"
 
-int main_lab(int argc, char **argv);
-
+int main_3Dgame(int argc, char **argv);
+void createMenu();
+void menu(int value);
+void changeLightsLabToGreen();
+void gameOverCheck();
 #endif
