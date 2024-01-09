@@ -44,14 +44,15 @@
 #define OBJETO_VELOCIDADE	      0.1
 #define OBJETO_ROTACAO		        5
 #define OBJETO_RAIO		          0.12
-#define SCALE_PERSONAGEM            0.5
+#define SCALE_PERSONAGEM            0.4
 #define EYE_ROTACAO			          1
 #define CAMERA_HEIGHT_OFFSET    1.5f
 #define CAMERA_DISTANCE         5.0f
 #define FOV_CONSTANT 60.0f  // Human eye natural
-#define POWERUP_SIZE 0.25f
+#define POWERUP_SIZE 0.20f
 #define CUBE_SIZE 0.5f
 #define HARD_TIME 60 //start hardcore mode when 60 seconds left
+#define VELOCITY_MULT 0.012f
 
 
 
@@ -129,7 +130,9 @@ typedef struct {
     GLboolean     andar;
     GLuint        prev;
     GLuint        time_timer;
-    GLfloat       power_up_size;
+    GLfloat       power_up_time_size;
+    GLfloat       power_up_vel_size;
+    GLfloat         velocity_mult;
 } Modelo;
 
 Estado estado;
@@ -147,7 +150,7 @@ char mazedata [MAZE_HEIGHT][MAZE_WIDTH] = {
         "  * * **    *        *",
         "  *-**  * ** * *  * -*",
         "  *     *      *     *",
-        "  *          *** **  *",
+        "  *        ~ *** **  *",
         "  *           *  ** **",
         "  *     * *** ****   *",
         "  ***   *   *    **  *",
@@ -155,13 +158,13 @@ char mazedata [MAZE_HEIGHT][MAZE_WIDTH] = {
         "  ********  **** *   *",
         "  *            * *****",
         "  *     *      * *   *",
-        "  **-** *    *** **  *",
+        "  **~** *    *** **  *",
         "  *   *      *   **  *",
-        "  *  * **  **** ** - *",
+        "  *  * **  **** ** ~ *",
         "  ***  ***  **       *",
         "  * *   *   *    **  *",
         "  *       *      *   *",
-        "  ********    ********"
+        "  ********  + ********"
 };
 
 
@@ -229,7 +232,9 @@ void init(void)
     modelo.objeto.dir = 0;
     modelo.objeto.vel = OBJETO_VELOCIDADE;
     modelo.time_timer = GAME_DURATION; //2 minutes
-    modelo.power_up_size = POWERUP_SIZE;
+    modelo.power_up_time_size = POWERUP_SIZE;
+    modelo.power_up_vel_size = POWERUP_SIZE;
+    modelo.velocity_mult = VELOCITY_MULT;
 
     modelo.xMouse = modelo.yMouse = -1;
     modelo.andar = GL_FALSE;
@@ -321,7 +326,7 @@ void reshapeNavigateSubwindow(int width, int height){
 void reshapeMainWindow(int width, int height)
 {
     GLint w, h;
-    w = (width - GAP * 3) * .5;
+    w = (width - GAP * 3.0f) * .5;
     h = (height - GAP * 2);
     glutSetWindow(estado.topSubwindow);
     glutPositionWindow(GAP, GAP);
@@ -543,7 +548,7 @@ GLint isInsideMazeZBorders(){
     return 1;
 }
 
-void drawdifficulty(GLint width, GLint height) {
+void draw_win_msg(GLint width, GLint height) {
     // Save the current viewport settings
     GLint viewport[4];
     glGetIntegerv(GL_VIEWPORT, viewport);
@@ -594,8 +599,12 @@ void desenhaTimer(int width, int height) {
         sprintf(timerText, "GAME OVER! PRESS R TO RESTART");
     }else if(estado.difficulty == 1){
         sprintf(timerText, "Tempo restante: %d s HARDCORE MODE!!!",modelo.time_timer);
+    }else if(player.powerup == 1){
+        sprintf(timerText, "Tempo restante: %d s POWER-UP +5s",modelo.time_timer);
+    }else if(player.powerup == 2){
+        sprintf(timerText, "Tempo restante: %d Dá-lhe gás",modelo.time_timer);
     }else{
-        sprintf(timerText, "Tempo restante: %d s ",modelo.time_timer);
+        sprintf(timerText, "Tempo restante: %d s",modelo.time_timer);
     }
     renderBitmapString(timerPosX, timerPosY, GLUT_BITMAP_HELVETICA_18, timerText);
 }
@@ -661,6 +670,10 @@ void createMenu() {
     glutAttachMenu(GLUT_RIGHT_BUTTON);
 }
 
+/**************************************
+**** Funções auxiliares e de desenho ***
+**************************************/
+
 void desenhaModeloDir(Objeto obj, int width, int height)
 {
     redisplayTopSubwindow(width, height);
@@ -683,13 +696,47 @@ void desenhaAngVisao(Camera *cam)
 
     glBegin(GL_TRIANGLES);
         glVertex3f(0,0,0);
-        glVertex3f(5.0f * cos(RAD(cam->fov*ratio*0.5f)),0,-5.0f * sin(RAD(cam->fov*ratio*0.5)));
-        glVertex3f(5.0f * cos(RAD(cam->fov*ratio*0.5f)),0,5.0f * sin(RAD(cam->fov*ratio*0.5)));
+        glVertex3f(5.0f * cos(RAD(cam->fov*ratio*0.5f)),0,-5.0f * sin(RAD(cam->fov*ratio*0.5f)));
+        glVertex3f(5.0f * cos(RAD(cam->fov*ratio*0.5f)),0,5.0f * sin(RAD(cam->fov*ratio*0.5f)));
     glEnd();
     glPopMatrix();
 
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
+}
+
+void desenha_power_up(){
+    GLint i,j;
+    glColor3f(0.0f, 1.0f, 0.0f);
+
+    glPushMatrix();
+    glTranslatef(-MAZE_HEIGHT * 0.5f, 0.5f, -MAZE_WIDTH * 0.5f);
+    for(i = 0; i < MAZE_HEIGHT; i++)
+        for(j = 0; j < MAZE_WIDTH; j++)
+            if(mazedata[i][j] == '-') {
+                if (modelo.power_up_time_size != 0) {
+                    glPushMatrix();
+                        glColor3f(0.0f, 1.0f, 0.0f); //green
+                        glTranslated(i, 0, j);
+                        glutSolidSphere(modelo.power_up_time_size, 20, 20);
+                        glPopMatrix();
+                }
+            }else if(mazedata[i][j] == '+'){
+                glPushMatrix();
+                glTranslated(i, 0, j);
+                glColor3f(1.0f, 0.0f, 0.0f);
+                glutWireTeapot(POWERUP_SIZE);
+                glPopMatrix();
+            }else if(mazedata[i][j] == '~'){
+                if (modelo.power_up_vel_size != 0) {
+                    glPushMatrix();
+                        glColor3f(0.0f, 0.0f, 1.0f); //blue
+                        glTranslated(i, 0, j);
+                        glutSolidSphere(modelo.power_up_vel_size, 20, 20);
+                        glPopMatrix();
+                }
+            }
+    glPopMatrix();
 }
 
 
@@ -706,15 +753,7 @@ void desenhaLabirinto(GLuint texID){
                 glTranslated(i, 0 ,j);
                 desenhaCubo((i+j) % 6, texID);
                 glPopMatrix();
-            }else if(mazedata[i][j] == '-'){//power up
-                if(modelo.power_up_size != 0){
-                    glPushMatrix();
-                    glTranslated(i, 0 ,j);
-                    glutSolidSphere(modelo.power_up_size, 20, 20);
-                    glPopMatrix();
-                }
             }
-
     glPopMatrix();
 }
 
@@ -745,6 +784,7 @@ void desenhaChao(GLfloat dimensao, GLuint texID)
 
 }
 
+//criar uma funcao desenha powerups
 void createDisplayLists(int janelaID)
 {
     modelo.mapa[janelaID]=glGenLists(2);
@@ -853,9 +893,9 @@ void displayNavigateSubwindow(){
 
     glCallList(modelo.mapa[JANELA_NAVIGATE]);
     glCallList(modelo.chao[JANELA_NAVIGATE]);
+    desenha_power_up();
 
-
-    // Draw the character and compass if not in navigation view
+    // Draw the character compass and power-ups if not in navigation view
     if (!estado.vista[JANELA_NAVIGATE]) {
         glPushMatrix();
         glTranslatef(modelo.objeto.pos.x, modelo.objeto.pos.y + 0.3f, modelo.objeto.pos.z);
@@ -889,14 +929,12 @@ void displayNavigateSubwindow(){
 
         glPopMatrix();
     }
-
     // Draw compass
     glPushMatrix();
     glRotatef(90, 0, 1, 0);
     glRotatef(GRAUS(modelo.objeto.dir), 0, 1, 0);
     desenhaBussola(glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT));
     glPopMatrix();
-
     // Swap the front and back buffers
     glutSwapBuffers();
 }
@@ -928,6 +966,7 @@ void displayTopSubwindow()
     glCallList(modelo.mapa[JANELA_TOP]);
     glCallList(modelo.chao[JANELA_TOP]);
 
+    desenha_power_up();
 
     glPushMatrix();
     glTranslatef(modelo.objeto.pos.x,modelo.objeto.pos.y,modelo.objeto.pos.z);
@@ -968,7 +1007,7 @@ void displayMainWindow()
     glClearColor(0.8f, 0.8f, 0.8f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     desenhaTimer(0, glutGet(GLUT_WINDOW_HEIGHT));
-    drawdifficulty(glutGet(GLUT_WINDOW_WIDTH),glutGet(GLUT_WINDOW_HEIGHT));
+    draw_win_msg(glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT));
     glutSwapBuffers();
 }
 
@@ -996,8 +1035,13 @@ void temporizador(int value) {
             estado.difficulty = 1;
         }
         if(player.powerup == 1 && modelo.time_timer <= GAME_DURATION - 5){
-            modelo.power_up_size =0;
+            modelo.power_up_time_size =0;
             modelo.time_timer += 5;     //+ 5 seconds
+            player.powerup =0 ;
+        }
+        if(player.powerup == 2 && modelo.velocity_mult <= 0.20){
+            modelo.power_up_vel_size =0;
+            modelo.velocity_mult += 0.01f;
             player.powerup =0 ;
         }
     }
@@ -1048,7 +1092,7 @@ int checkCollision_powerup(float carX, float carZ, float objectX, float objectZ,
 }
 
 
-
+///Return 1 if no collision, return 3 if collides with velocity power ups, return 2 if collides with timer power ups, return 0 if collides with walls
 int checkCollision(float carX, float carZ) {
     GLfloat cubeSize = CUBE_SIZE; // Cube size
     GLfloat halfCubeSize = cubeSize / 2.0f; // Half of the cube size
@@ -1068,13 +1112,17 @@ int checkCollision(float carX, float carZ) {
                     carZ - halfCubeSize <= cubeZ + halfCubeSize) {
                     return 1; // Collision detected
                 }
-            }else if(mazedata[i][j] == '-'){
+            }else if(mazedata[i][j] == '-' || mazedata[i][j] == '~') {
                 //Check if collided with power-up
                 GLfloat pupX = i - MAZE_HEIGHT * cubeSize; // Power-up X
                 GLfloat pupZ = j - MAZE_WIDTH * cubeSize; // Power-up Z
-                if(checkCollision_powerup(carX, carZ, pupX, pupZ, POWERUP_SIZE)){
+                if (checkCollision_powerup(carX, carZ, pupX, pupZ, POWERUP_SIZE)) {
                     //printf("POWER_UP!!!\n");
-                    return 2; // Collision detected power-up
+                    if(mazedata[i][j] == '~'){
+                        return 3; // Collision detected power-up velocity
+                    }else{
+                        return 2; // Collision detected power-up timer
+                    }
                 }
             }
         }
@@ -1091,7 +1139,7 @@ void timer(int value){
 
     GLuint curr = glutGet(GLUT_ELAPSED_TIME);
     // Calcula velocidade baseado no tempo passado
-    float velocidade = modelo.objeto.vel * (curr - modelo.prev) * 0.012f;
+    float velocidade = modelo.objeto.vel * (curr - modelo.prev) * modelo.velocity_mult;
 
     glutTimerFunc(estado.timer, timer, 0);
 
@@ -1116,16 +1164,19 @@ void timer(int value){
             modelo.objeto.pos.x = nx;
             modelo.objeto.pos.z = nz;
             andar = GL_TRUE;
-        } else if (collisionResult == 2) {
+        } else if (collisionResult == 2 || collisionResult == 3) {
             // Collision with power-up
-            modelo.power_up_size = 0;   //set power-up size to 0
             modelo.objeto.pos.x = nx;
             modelo.objeto.pos.z = nz;
-            player.powerup = 1;     //set flag to 1 when player hits power-up
-            printf("power up !!!\n");
+            if(collisionResult == 3){
+                player.powerup = 2;     //set flag to 2 when player hits velocity power-up
+            }else {
+                player.powerup = 1;     //set flag to 1 when player hits timer power-up
+            }
+            //printf("power up !!!\n");
             andar = GL_TRUE;
         } else {
-            // Other collision
+            // Collision with walls
             andar = GL_FALSE;
             printf("Collision!\n");
         }
@@ -1142,7 +1193,7 @@ void timer(int value){
             init();
             glutPostRedisplay();
         }
-        if(isInsideMazeXBorders() == 0){
+        if(isInsideMazeXBorders() == 0 || isInsideMazeZBorders() == 0){
             andar = GL_FALSE;
         }
 
