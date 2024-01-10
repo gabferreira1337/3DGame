@@ -1010,9 +1010,9 @@ void displayMainWindow(){
 
 void check_win(){
     //if in hardcore mode +3 points
-    if(estado.difficulty == 1 && estado.jogo == 2){
+    if(estado.difficulty == 1 && estado.jogo == 2 && modelo.teapot_size == 0){
         player.points += HARDCORE_POINTS;
-    }else if(estado.difficulty == 0 && estado.jogo == 2){
+    }else if(estado.difficulty == 0 && estado.jogo == 2 && modelo.teapot_size == 0){
         player.points +=1;
         //If ended the game
     }else if(estado.jogo == 3){
@@ -1188,6 +1188,10 @@ void timer(int value){
                 player.powerup = 1;     //set flag to 1 when player hits timer power-up
             }else{
                 modelo.teapot_size = 0;
+                estado.jogo = 2;
+                check_win();
+                init();
+                glutPostRedisplay();
             }
             //printf("power up !!!\n");
             andar = GL_TRUE;
@@ -1200,14 +1204,6 @@ void timer(int value){
         //Change object and camera direction
         change_direction();
 
-        if (isInsideMazeXBorders() == -1) {
-        // Player reached the exit, set win condition
-            printf("Congratulations! You won!\n");
-            estado.jogo = 2;
-            check_win();
-            init();
-            glutPostRedisplay();
-        }
         if(isInsideMazeXBorders() == 0 || isInsideMazeZBorders() == 0){
             andar = GL_FALSE;
         }
