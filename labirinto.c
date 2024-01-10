@@ -117,7 +117,8 @@ typedef struct {
     GLuint        vista[NUM_JANELAS];
     GLuint        jogo;         // if set to 1 = on , if set to 0 = game over if set to 2 = win
     GLuint        start;        //if set to 1 start game (timer)
-    GLuint       won;
+    GLuint        won;
+    GLuint        points_added;
 } Estado;
 
 typedef struct {
@@ -228,6 +229,7 @@ void init(void)
     estado.camera.fov = 60;
     estado.start = 0;
     estado.won = 0;
+    estado.points_added = 0;
 
     estado.localViewer = 1;
     estado.vista[JANELA_TOP] = 0;
@@ -1012,17 +1014,20 @@ void displayMainWindow(){
 
 void check_win(){
 
-     if (estado.difficulty == 1 && estado.jogo == 2 && modelo.teapot_size == 0) {
+     if (estado.difficulty == 1 && estado.jogo == 2 && modelo.teapot_size == 0 & estado.points_added == 0) {
          player.points = 1337;
          player.wins++;
-     } else if (estado.difficulty == 0 && estado.jogo == 2 && modelo.teapot_size == 0) {
+         estado.points_added = 1;
+     } else if (estado.difficulty == 0 && estado.jogo == 2 && modelo.teapot_size == 0 & estado.points_added == 0) {
          if(player.points < 1337){
              player.points++;
              player.wins++;
+             estado.points_added = 1;
          }
-         if(player.points >= 1337){
+         if(player.points >= 1337 & estado.points_added == 0){
              player.wins = 0;
              player.points = 0;
+             estado.points_added = 1;
          }
      }
     /*else{
