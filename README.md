@@ -1,14 +1,14 @@
 # Maze Runner 3D Game
 
 ## Introduction
-Maze Runner is a simple 3D game implemented in C using OpenGL. The game involves navigating a car through a maze environment, avoiding collisions, and changing the car's colors.
+Maze Runner is a simple 3D game implemented in C using OpenGL. The game involves navigating a car through a maze environment, avoiding collisions, changing the car's colors, catch power-ups and find a teapot to exit from the maze.
 
 ## Features
 - **Car Movement:** Control the car using keyboard inputs (up, down, left, right).
 - **Car Color Customization:** Change the color of the car body and wheels through the right-click menu.
 - **Camera Control:** Adjust the camera angle using mouse movements.
 - **Collision Detection:** Prevent the car from moving through walls by detecting collisions.
-- **Power-ups:** Increase the speed of the car.
+- **Power-ups:** Increase the speed of the car, Increase timer , Decrease the speed of the car and size.
 - **Fog:** Low visibility.
 
 ## How to Play
@@ -17,7 +17,8 @@ Maze Runner is a simple 3D game implemented in C using OpenGL. The game involves
     - *Down Arrow Key:* Move the car backward.
     - *Left/Right Arrow Keys:* Rotate the car left or right.
     - *Mouse Drag:* Control the camera view angle.
-    - *'Z' key: Activate hardcore mode of the game.
+    - *'S' key: Start the game
+    - *'Z' key: Start the game in hardcore mode.
     - *'R' key: Restart the game.
 
 2. **Menu Options:**
@@ -37,6 +38,8 @@ Maze Runner is a simple 3D game implemented in C using OpenGL. The game involves
 ## Usage
 - Use the arrow keys to navigate the car through the maze.
 - Right-click to access the menu and change the car's colors or reset the camera.
+- Catch the power-ups to win advantage (or not)
+- Find the teapot to win the game!
 
 ## Future Improvements
 - Adding maze generation algorithms for dynamic maze creation.
