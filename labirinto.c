@@ -39,11 +39,11 @@
 #define MAZE_WIDTH                22
 #define CAMERA_ROTATION           0.1
 
-#define	OBJETO_ALTURA		        0.4
-#define OBJETO_VELOCIDADE	      0.1
-#define OBJETO_ROTACAO		        5
-#define OBJETO_RAIO		          0.12
-#define SCALE_PERSONAGEM            0.4
+#define EXIT_X                    10.0f
+#define EXIT_Y                    1.0f
+#define	OBJETO_ALTURA		      0.4f
+#define OBJETO_VELOCIDADE	      0.1f
+#define SCALE_PERSONAGEM            0.4f
 #define EYE_ROTACAO			          1
 #define CAMERA_HEIGHT_OFFSET    1.5f
 #define CAMERA_DISTANCE         5.0f
@@ -52,7 +52,6 @@
 #define CUBE_SIZE 0.5f
 #define HARD_TIME 60 //start hardcore mode when 60 seconds left
 #define VELOCITY_MULT 0.012f
-#define HARDCORE_POINTS 3
 #define INCREASE_TIME 5 //time to increase when car collides with power-up
 #define MAX_VELOCITY 0.20f
 #define MOUSE_TIME 10       //tempo do efeito ao apanhar power-up modo rato
@@ -115,7 +114,7 @@ typedef struct {
     Teclas        teclas;
     GLboolean     localViewer;
     GLuint        vista[NUM_JANELAS];
-    GLuint       jogo;         // if set to 1 = on , if set to 0 = game over if set to 2 = win
+    GLuint        jogo;         // if set to 1 = on , if set to 0 = game over if set to 2 = win
 } Estado;
 
 typedef struct {
@@ -135,6 +134,7 @@ typedef struct {
     GLfloat       velocity_mult;      //velocity multiplier
     GLfloat       teapot_size;
     GLfloat         car_size;
+    GLfloat         exit_dir;
 } Modelo;
 
 Estado estado;
@@ -321,7 +321,7 @@ void reshapeNavigateSubwindow(int width, int height){
     // Matriz onde se define como o mundo e apresentado na janela
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(estado.camera.fov,(GLfloat)width/height,0.1,50);
+    gluPerspective(estado.camera.fov,(GLfloat)width/height,0.1f,50.0f);
 
     // Matriz Modelview
     // Matriz onde são realizadas as transformações dos modelos desenhados
@@ -487,10 +487,10 @@ void desenhaPersonagem(void) {
 }
 
 void desenhaBussola(int width, int height){
-    glViewport(width-60, 0, 60, 60);
+    glViewport(width - 60, 0, 60, 60);
     glMatrixMode(GL_PROJECTION);
-
     glLoadIdentity();
+
     gluOrtho2D(-30, 30, -30, 30);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
@@ -501,33 +501,36 @@ void desenhaBussola(int width, int height){
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_COLOR_MATERIAL);
 
-    //desenhar bussola 2D
-    glBegin(GL_TRIANGLES);
-    glColor4f(0,0,0,0.2f);
+    glPushMatrix();  // Save the current modelview matrix
+    glRotatef(modelo.exit_dir, 0, 0, 1);  // Rotate based on modelo.exit_dir
 
-    glVertex2f(0,15);
-    glVertex2f(-6,0);
-    glVertex2f(6,0);
-    glColor4f(1.0f,1.0f,1.0f,0.2f);
-    glVertex2f(6.0f,0.0f);
-    glVertex2f(-6.0f,0.0f);
-    glVertex2f(0.0f,-15.0f);
+    // Draw the compass as before
+    glBegin(GL_TRIANGLES);
+    glColor4f(1, 0, 0, 0.1f);
+    glVertex2f(0, 15);
+    glVertex2f(-6, 0);
+    glVertex2f(6, 0);
+    glColor4f(1.0f, 1.0f, 1.0f, 0.1f);
+    glVertex2f(6.0f, 0.0f);
+    glVertex2f(-6.0f, 0.0f);
+    glVertex2f(0.0f, -15.0f);
     glEnd();
 
     glLineWidth(2.0f);
-    glColor3f(1,1,1);
+    glColor3f(0.898f, 1.0f, 0.855f);
     glDisable(GL_BLEND);
     strokeCenterString("N", 0, 20, 0, 0.1);
     strokeCenterString("S", 0, -20, 0, 0.1);
 
-    //repor estado
+    glPopMatrix();  // Restore the original modelview matrix
+
     glEnable(GL_LIGHTING);
     glEnable(GL_COLOR_MATERIAL);
     glEnable(GL_DEPTH_TEST);
 
-    //repor projeção chamando o redisplay
     reshapeNavigateSubwindow(width, height);
 }
+
 
 void draw_win_msg(GLint width, GLint height) {
     // Save the current viewport settings
@@ -683,11 +686,11 @@ void desenhaLabirinto(GLuint texID){
                 glPopMatrix();
             }
     glPopMatrix();
+
 }
 
 
-void desenhaChao(GLfloat dimensao, GLuint texID)
-{
+void desenhaChao(GLfloat dimensao, GLuint texID){
     GLfloat i,j;
     glBindTexture(GL_TEXTURE_2D, texID);
 
@@ -727,7 +730,6 @@ void changeLightsColorToBlue() {
 }
 
 void changeLightsColorToRed() {
-
     storedColor[0] = 1.0f;
     storedColor[1] = 0.0f;
     storedColor[2] = 0.0f;
@@ -775,9 +777,8 @@ void createMenu() {
 }
 
 
-//criar uma funcao desenha powerups
-void createDisplayLists(int janelaID)
-{
+
+void createDisplayLists(int janelaID){
     modelo.mapa[janelaID]=glGenLists(2);
 
     glNewList(modelo.mapa[janelaID], GL_COMPILE);
@@ -885,7 +886,7 @@ void displayNavigateSubwindow(){
     glCallList(modelo.chao[JANELA_NAVIGATE]);
     desenha_power_up();
 
-    // Draw the character compass and power-ups if not in navigation view
+    // Draw the character, compass and power-ups if not in navigation view
     if (!estado.vista[JANELA_NAVIGATE]) {
         glPushMatrix();
         glTranslatef(modelo.objeto.pos.x, modelo.objeto.pos.y + 0.3f, modelo.objeto.pos.z);
@@ -917,12 +918,9 @@ void displayNavigateSubwindow(){
 
         glPopMatrix();
     }
+
     // Draw compass
-    glPushMatrix();
-    glRotatef(90, 0, 1, 0);
-    glRotatef(GRAUS(modelo.objeto.dir), 0, 1, 0);
     desenhaBussola(glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT));
-    glPopMatrix();
     // Swap the front and back buffers
     glutSwapBuffers();
 }
@@ -967,7 +965,6 @@ void displayTopSubwindow(){
             glColor3fv(storedColor);
             desenhaPersonagem();
         glDisable(GL_COLOR_MATERIAL);
-
     glPopMatrix();
 
     desenhaAngVisao(&estado.camera);
@@ -1008,7 +1005,7 @@ void check_win(){
 ******** CALLBACKS TIME/IDLE **********
 **************************************/
 void temporizador(int value) {
-    static GLint mouse_mode_time = 0;  // Declare as static to retain its value between function calls
+    static GLint64 mouse_mode_time = 0;  // Declare as static to retain its value between function calls
 
     if (modelo.time_timer > 0) {
         modelo.time_timer--;
@@ -1046,17 +1043,16 @@ void temporizador(int value) {
             modelo.car_size = 0.1f;  // Change size of car
             modelo.velocity_mult -= 0.01f;
             mouse_mode_time = time(NULL);
-            printf("Mouse Mode Time Start: %d\n", mouse_mode_time);
+            //printf("Mouse Mode Time Start: %d\n", mouse_mode_time);
         }
         // If mouse mode is active and time has passed, revert changes
         if (mouse_mode_time > 0 && difftime(time(NULL), mouse_mode_time) >= MOUSE_TIME) {
             modelo.car_size = SCALE_PERSONAGEM;
             modelo.velocity_mult = VELOCITY_MULT;
             player.powerup = 0;
-            mouse_mode_time = 0;  // Reset the time reference
+            mouse_mode_time = 0;  // Reset the mouse_mode_time
         }
     }
-
     check_win();
     glutTimerFunc(1000, temporizador, 0);
     redisplayAll();
@@ -1068,8 +1064,7 @@ void change_direction(){
     if (estado.teclas.left){
         // rodar camara e objeto
         modelo.objeto.dir += CAMERA_ROTATION;
-        if (GRAUS(modelo.objeto.dir) >= 360)
-        {
+        if (GRAUS(modelo.objeto.dir) >= 360){
             modelo.objeto.dir = 0;
         }
     }
@@ -1109,6 +1104,7 @@ int checkInsideBorders(float carX, float carZ) {
 
 
 ///Return 1 if no collision, return 3 if collides with velocity power ups, return 2 if collides with timer power ups, return 0 if collides with walls
+///Return 4 if collides with teapo , and return 5 if collides wit mouse power_up
 int checkCollision(float carX, float carZ) {
     GLfloat cubeSize = CUBE_SIZE; // Cube size
     GLfloat halfCubeSize = cubeSize / 2.0f; // Half of the cube size
@@ -1117,7 +1113,6 @@ int checkCollision(float carX, float carZ) {
     for (int i = 0; i < MAZE_HEIGHT; ++i) {
         for (int j = 0; j < MAZE_WIDTH; ++j) {
             if (mazedata[i][j] == '*') {
-
                 GLfloat cubeX = i - modelo.car_size - MAZE_HEIGHT * cubeSize; // Cube's face X
                 GLfloat cubeZ = j - modelo.car_size - MAZE_WIDTH * cubeSize; // Cube's face Z
 
@@ -1130,18 +1125,18 @@ int checkCollision(float carX, float carZ) {
                 }
             }else if(mazedata[i][j] == '-' || mazedata[i][j] == '~' || mazedata[i][j] == '+' || mazedata[i][j] == '^') {
                 //Check if collided with power-up
-                GLfloat pupX = i - MAZE_HEIGHT * cubeSize; // Power-up X
-                GLfloat pupZ = j - MAZE_WIDTH * cubeSize; // Power-up Z
+                GLfloat pupX = i - MAZE_HEIGHT * CUBE_SIZE; // Power-up X
+                GLfloat pupZ = j - MAZE_WIDTH * CUBE_SIZE; // Power-up Z
                 if (checkCollision_powerup(carX, carZ, pupX, pupZ, POWERUP_SIZE)) {
                     if(mazedata[i][j] == '~'){
                         return 3; // Collision detected power-up velocity
                     }else if(mazedata[i][j] == '-'){
                         return 2; // Collision detected power-up timer
                     }else if(mazedata[i][j] == '+'){
+                        printf("exit coord: x = %f y = %f\n", pupX, pupZ);
                         return 4; //Collision detected teapot
                     }else{
-                        printf("jhgjvjj\n");
-                        return 5;   //collision with mouse power-up
+                        return 5; //collision with mouse power-up
                     }
                 }
             }
@@ -1207,11 +1202,15 @@ void timer(int value){
            // printf("Collision!\n");
         }
     }
-        //Change object and camera direction
-        change_direction();
+    //change compass rotation angle
+    float exitDirection = atan2(EXIT_Y- modelo.objeto.pos.z, EXIT_X - modelo.objeto.pos.x);
+    modelo.exit_dir = -GRAUS(exitDirection);
 
-        motionNavigateSubwindow(modelo.objeto.pos.x, modelo.objeto.pos.y);
-        redisplayAll();
+    //Change object and camera direction
+    change_direction();
+
+    motionNavigateSubwindow(modelo.objeto.pos.x, modelo.objeto.pos.y);
+    redisplayAll();
 }
 
 
@@ -1383,7 +1382,7 @@ void specialKeyUp(int key, int x, int y)
 void createTextures(GLuint texID[])
 {
     unsigned char *image_chao = NULL, *image_cubos = NULL;
-    int w, h, bpp;
+    int w, h;
 
     glGenTextures(NUM_TEXTURAS,texID);
 
