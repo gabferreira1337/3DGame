@@ -116,6 +116,7 @@ typedef struct {
     GLboolean     localViewer;
     GLuint        vista[NUM_JANELAS];
     GLuint        jogo;         // if set to 1 = on , if set to 0 = game over if set to 2 = win
+    GLuint        start;        //if set to 1 start game (timer)
 } Estado;
 
 typedef struct {
@@ -224,6 +225,7 @@ void init(void)
     estado.camera.dir_long = 0;
     estado.camera.dir_lat = 0;
     estado.camera.fov = 60;
+    estado.start = 0;
 
     estado.localViewer = 1;
     estado.vista[JANELA_TOP] = 0;
@@ -552,13 +554,13 @@ void draw_win_msg(GLint width, GLint height) {
     char difficultyText[100];
     char winsText[100];
 
-    sprintf(difficultyText, "POINTS: %d ", player.points);
+    sprintf(difficultyText, "POINTS: %d", player.points);
 
-    renderBitmapString(difficultyPosX, difficultyPosY, GLUT_BITMAP_HELVETICA_18, difficultyText);
+    renderBitmapString(difficultyPosX, difficultyPosY, GLUT_BITMAP_HELVETICA_12, difficultyText);
 
     // Calculate the width of the "POINTS" text
     int difficultyTextLength = strlen(difficultyText);
-    GLfloat winsPosX = difficultyPosX + (difficultyTextLength * 8.0f) + 15.0f;
+    GLfloat winsPosX = difficultyPosX + (difficultyTextLength * 7.0f) ;
 
     sprintf(winsText, "WINS: %d", player.wins);
 
@@ -567,6 +569,8 @@ void draw_win_msg(GLint width, GLint height) {
     // Restore the original viewport settings
     glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
 }
+
+
 
 void desenhaTimer(int width, int height) {
     glViewport(0, height - 30, 100, 30);
@@ -593,6 +597,8 @@ void desenhaTimer(int width, int height) {
         sprintf(timerText, "Tempo restante: %d s POWER-UP +5s",modelo.time_timer);
     }else if(player.powerup == 2 && modelo.power_up_vel_size != 0){
         sprintf(timerText, "Tempo restante: %d Da-lhe gas",modelo.time_timer);
+    }else if(estado.start == 0){
+        sprintf(timerText, "Press S to start! Or Z for a surprise :)",modelo.time_timer);
     }else{
         sprintf(timerText, "Tempo restante: %d s",modelo.time_timer);
     }
@@ -997,14 +1003,25 @@ void displayMainWindow(){
 }
 
 void check_win(){
-    //if in hardcore mode +3 points
-    if(estado.difficulty == 1 && estado.jogo == 2 && modelo.teapot_size == 0){
-        player.points = 5;
-        player.wins++;
-    }else if(estado.difficulty == 0 && estado.jogo == 2 && modelo.teapot_size == 0){
-        player.points +=1;
-        player.wins++;
-    }
+ if(player.wins <= 1337 && player.points <= 420) {
+     //if in hardcore mode +3 points
+     if (estado.difficulty == 1 && estado.jogo == 2 && modelo.teapot_size == 0) {
+         if(player.points <= 420){
+             player.points +=5;
+         }
+         player.wins = 1337;
+     } else if (estado.difficulty == 0 && estado.jogo == 2 && modelo.teapot_size == 0) {
+         if(player.wins <= 1337){
+             player.wins++;
+         }
+         if(player.points <= 420){
+             player.points += 1;
+         }
+     }
+ }else{
+     player.wins = 0;
+     player.points = 0;
+ }
 }
 
 
@@ -1014,8 +1031,12 @@ void check_win(){
 **************************************/
 void temporizador(int value) {
     static GLint64 mouse_mode_time = 0;  // Declare as static to retain its value between function calls
+    //when player starts the game by pressing 's' and if velocity is not set
+    if(estado.start == 1 && !modelo.velocity_mult){
+        modelo.velocity_mult = VELOCITY_MULT;
+    }
 
-    if (modelo.time_timer > 0) {
+    if (modelo.time_timer > 0 && estado.start == 1) {
         modelo.time_timer--;
 
         // If time ended
@@ -1060,6 +1081,8 @@ void temporizador(int value) {
             player.powerup = 0;
             mouse_mode_time = 0;  // Reset the mouse_mode_time
         }
+    }else{
+        modelo.velocity_mult =0 ;
     }
     check_win();
     glutTimerFunc(1000, temporizador, 0);
@@ -1141,7 +1164,7 @@ int checkCollision(float carX, float carZ) {
                     }else if(mazedata[i][j] == '-'){
                         return 2; // Collision detected power-up timer
                     }else if(mazedata[i][j] == '+'){
-                        printf("exit coord: x = %f y = %f\n", pupX, pupZ);
+                        //printf("exit coord: x = %f y = %f\n", pupX, pupZ);
                         return 4; //Collision detected teapot
                     }else{
                         return 5; //collision with mouse power-up
@@ -1157,7 +1180,7 @@ int checkCollision(float carX, float carZ) {
 
 
 /* Callback de temporizador */
-void timer(int value){
+void timer(){
     GLfloat nx = 0, nz = 0;
     GLuint curr = glutGet(GLUT_ELAPSED_TIME);
     // Calcula velocidade baseado no tempo passado
@@ -1288,19 +1311,26 @@ void key(unsigned char key, int x, int y)
             //Restart game if click on R key
         case 'r':
         case 'R':
-            init();
-            player.points = 0;
+            if(estado.difficulty != 1){
+                init();
+                player.points = 0;
+            }
             break;
         case 'z':
         case 'Z':
             //activate fog if 1
             if (modelo.time_timer >= 100) {
             estado.difficulty = 1;
+            estado.start = 1;
             }
             break;
         case'x':
         case'X':
             estado.difficulty = 0;
+            break;
+        case's':
+        case'S':
+            estado.start = 1;
             break;
     }
 
@@ -1337,8 +1367,7 @@ void specialKey(int key, int x, int y){
             estado.vista[JANELA_NAVIGATE]=!estado.vista[JANELA_NAVIGATE];
             break;
         case GLUT_KEY_PAGE_UP:
-            if(estado.camera.fov>20)
-            {
+            if(estado.camera.fov>20){
                 estado.camera.fov--;
                 glutSetWindow(estado.navigateSubwindow);
                 reshapeNavigateSubwindow(glutGet(GLUT_WINDOW_WIDTH),glutGet(GLUT_WINDOW_HEIGHT));
