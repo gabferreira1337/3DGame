@@ -1003,22 +1003,35 @@ void displayMainWindow(){
 }
 
 void check_win(){
- if(player.wins <= 1337 && player.points <= 420) {
-     //if in hardcore mode +3 points
+
+    GLfloat timerPosX = 10;
+    GLfloat timerPosY = 10;
+
+    char winText[200];
+
+
+    if(player.wins <= 1337 && player.points <= 420) {
      if (estado.difficulty == 1 && estado.jogo == 2 && modelo.teapot_size == 0) {
-         if(player.points <= 420){
+         if(player.points < 1337){
              player.points +=5;
-         }
-         player.wins = 1337;
-     } else if (estado.difficulty == 0 && estado.jogo == 2 && modelo.teapot_size == 0) {
-         if(player.wins <= 1337){
              player.wins++;
          }
-         if(player.points <= 420){
-             player.points += 1;
+         player.wins ++;
+     } else if (estado.difficulty == 0 && estado.jogo == 2 && modelo.teapot_size == 0) {
+         if(player.points < 1337){
+             sprintf(winText, "Your won");
+             player.points++;
+             player.wins++;
+         }
+         if(player.points >= 1337){
+             sprintf(winText, "You are a super player");
+             player.wins = 0;
+             player.points = 0;
          }
      }
- }else{
+        renderBitmapString(timerPosX, timerPosY, GLUT_BITMAP_HELVETICA_18, winText);
+
+    }else{
      player.wins = 0;
      player.points = 0;
  }
