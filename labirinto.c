@@ -53,6 +53,9 @@
 #define CUBE_SIZE 0.5f
 #define HARD_TIME 60 //start hardcore mode when 60 seconds left
 #define VELOCITY_MULT 0.012f
+#define HARDCORE_POINTS 3
+#define INCREASE_TIME 5 //time to increase when car collides with power-up
+#define MAX_VELOCITY 0.20f
 
 
 
@@ -106,7 +109,7 @@ typedef struct camera{
 } Camera;
 typedef struct player{
     GLuint points;
-    GLboolean powerup;      //if set to 1 power-up activated
+    GLboolean powerup;  //if set to 1 timer power-up activated, if set to 2 velocity power-up activated if set to 0 both deactivated
 } PLAYER;
 typedef struct {
     Camera        camera;
@@ -127,12 +130,13 @@ typedef struct {
     GLuint        xMouse;
     GLuint        yMouse;
     GLMmodel*     modelo;
-    GLboolean     andar;
+    GLboolean     andar;        //1 = anda 0 = para
     GLuint        prev;
     GLuint        time_timer;
     GLfloat       power_up_time_size;
     GLfloat       power_up_vel_size;
-    GLfloat         velocity_mult;
+    GLfloat       velocity_mult;      //velocity multiplier
+    GLfloat       teapot_size;
 } Modelo;
 
 Estado estado;
@@ -235,6 +239,7 @@ void init(void)
     modelo.power_up_time_size = POWERUP_SIZE;
     modelo.power_up_vel_size = POWERUP_SIZE;
     modelo.velocity_mult = VELOCITY_MULT;
+    modelo.teapot_size = POWERUP_SIZE;
 
     modelo.xMouse = modelo.yMouse = -1;
     modelo.andar = GL_FALSE;
@@ -261,9 +266,8 @@ void init(void)
 ***** CALL BACKS DE JANELA/DESENHO ****
 **************************************/
 
-void redisplayTopSubwindow(int width, int height)
-{
-    // glViewport(botom, left, width, height)
+void redisplayTopSubwindow(int width, int height){
+
     // Define parte da janela a ser utilizada pelo OpenGL
     glViewport(0, 0, (GLint) width, (GLint) height);
 
@@ -276,7 +280,6 @@ void redisplayTopSubwindow(int width, int height)
     // Matriz Modelview
     // Matriz onde são realizadas as transformações dos modelos desenhados
     glMatrixMode(GL_MODELVIEW);
-
 }
 
 //1st person
@@ -354,133 +357,6 @@ void strokeCenterString(char *str,double x, double y, double z, double s)
     glPopMatrix();
 }
 
-void desenhaPoligno (GLfloat a[], GLfloat b[], GLfloat c[], GLfloat d[], GLfloat normal[], GLfloat tx, GLfloat ty)
-{
-    glBegin(GL_POLYGON);
-    glNormal3fv(normal);
-    glTexCoord2f(tx+0,ty+0);
-    glVertex3fv(a);
-    glTexCoord2f(tx+0,ty+0.25f);
-    glVertex3fv(b);
-    glTexCoord2f(tx+0.25f,ty+0.25f);
-    glVertex3fv(c);
-    glTexCoord2f(tx+0.25f,ty+0);
-    glVertex3fv(d);
-    glEnd();
-}
-
-void desenhaCubo (int tipo, GLuint texID){
-    GLfloat vertices[][3] = {{-0.5f, -0.5f, -0.5f},
-                             {0.5f, -0.5f, -0.5f},
-                             {0.5f, 0.5f, -0.5f},
-                             {-0.5f, 0.5f, -0.5f},
-                             {-0.5f, -0.5f, 0.5f},
-                             {0.5f, -0.5f, 0.5f},
-                             {0.5f, 0.5f, 0.5f},
-                             {-0.5f, 0.5f, 0.5f}};
-
-    GLfloat normais[][3] = {{0, 0, -1},
-                            {0, 1, 0},
-                            {-1, 0, 0},
-                            {1, 0, 0},
-                            {0, 0, 1},
-                            {0, -1, 0}};
-
-    GLfloat tx,ty;
-
-    switch(tipo)
-    {
-        case 0:
-            tx=0,ty=0;
-            break;
-        case 1:
-            tx=0,ty=0.25f;
-            break;
-        case 2:
-            tx=0,ty=0.5f;
-            break;
-        case 3:
-            tx=0,ty=0.75f;
-            break;
-        case 4:
-            tx=0.25f,ty=0;
-            break;
-        default:
-            tx=0.75f,ty=0.75f;
-    }
-
-    glBindTexture(GL_TEXTURE_2D, texID);
-
-    desenhaPoligno(vertices[1], vertices[0], vertices[3], vertices[2], normais[0], tx, ty);
-    desenhaPoligno(vertices[2], vertices[3], vertices[7], vertices[6], normais[1], tx, ty);
-    desenhaPoligno(vertices[3], vertices[0], vertices[4], vertices[7], normais[2], tx, ty);
-    desenhaPoligno(vertices[6], vertices[5], vertices[1], vertices[2], normais[3], tx, ty);
-    desenhaPoligno(vertices[4], vertices[5], vertices[6], vertices[7], normais[4], tx, ty);
-    desenhaPoligno(vertices[5], vertices[4], vertices[0], vertices[1], normais[5], tx, ty);
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-}
-
-void desenhaPersonagem(void) {
-    if (!modelo.modelo) {
-        modelo.modelo = glmReadOBJ(NOME_PERSONAGEM);
-
-        if (!modelo.modelo){
-            exit(0);
-        }
-
-        glmUnitize(modelo.modelo);
-        glmFacetNormals(modelo.modelo);
-        glmVertexNormals(modelo.modelo, 90.0f);
-    }
-
-    glmDraw(modelo.modelo, GLM_SMOOTH | GLM_MATERIAL);
-}
-
-void desenhaBussola(int width, int height)
-{
-    glViewport(width-60, 0, 60, 60);
-    glMatrixMode(GL_PROJECTION);
-
-    glLoadIdentity();
-    gluOrtho2D(-30, 30, -30, 30);
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDisable(GL_LIGHTING);
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_COLOR_MATERIAL);
-
-    //desenhar bussola 2D
-    glBegin(GL_TRIANGLES);
-    glColor4f(0,0,0,0.2f);
-
-        glVertex2f(0,15);
-        glVertex2f(-6,0);
-        glVertex2f(6,0);
-        glColor4f(1.0f,1.0f,1.0f,0.2f);
-        glVertex2f(6.0f,0.0f);
-        glVertex2f(-6.0f,0.0f);
-        glVertex2f(0.0f,-15.0f);
-        glEnd();
-
-        glLineWidth(2.0f);
-        glColor3f(1,1,1);
-        glDisable(GL_BLEND);
-        strokeCenterString("N", 0, 20, 0, 0.1);
-        strokeCenterString("S", 0, -20, 0, 0.1);
-
-    //repor estado
-    glEnable(GL_LIGHTING);
-    glEnable(GL_COLOR_MATERIAL);
-    glEnable(GL_DEPTH_TEST);
-
-    //repor projeção chamando o redisplay
-    reshapeNavigateSubwindow(width, height);
-}
 
 void renderBitmapString(float x, float y, void *font, char *string) {
     char *c;
@@ -548,6 +424,136 @@ GLint isInsideMazeZBorders(){
     return 1;
 }
 
+/******************************
+**** Funções de desenho ******
+******************************/
+
+void desenhaPoligno (GLfloat a[], GLfloat b[], GLfloat c[], GLfloat d[], GLfloat normal[], GLfloat tx, GLfloat ty)
+{
+    glBegin(GL_POLYGON);
+    glNormal3fv(normal);
+    glTexCoord2f(tx+0,ty+0);
+    glVertex3fv(a);
+    glTexCoord2f(tx+0,ty+0.25f);
+    glVertex3fv(b);
+    glTexCoord2f(tx+0.25f,ty+0.25f);
+    glVertex3fv(c);
+    glTexCoord2f(tx+0.25f,ty+0);
+    glVertex3fv(d);
+    glEnd();
+}
+
+void desenhaCubo (int tipo, GLuint texID){
+    GLfloat vertices[][3] = {{-0.5f, -0.5f, -0.5f},
+                             {0.5f, -0.5f, -0.5f},
+                             {0.5f, 0.5f, -0.5f},
+                             {-0.5f, 0.5f, -0.5f},
+                             {-0.5f, -0.5f, 0.5f},
+                             {0.5f, -0.5f, 0.5f},
+                             {0.5f, 0.5f, 0.5f},
+                             {-0.5f, 0.5f, 0.5f}};
+
+    GLfloat normais[][3] = {{0, 0, -1},
+                            {0, 1, 0},
+                            {-1, 0, 0},
+                            {1, 0, 0},
+                            {0, 0, 1},
+                            {0, -1, 0}};
+    GLfloat tx,ty;
+
+    switch(tipo)
+    {
+        case 0:
+            tx=0,ty=0;
+            break;
+        case 1:
+            tx=0,ty=0.25f;
+            break;
+        case 2:
+            tx=0,ty=0.5f;
+            break;
+        case 3:
+            tx=0,ty=0.75f;
+            break;
+        case 4:
+            tx=0.25f,ty=0;
+            break;
+        default:
+            tx=0.75f,ty=0.75f;
+    }
+
+    glBindTexture(GL_TEXTURE_2D, texID);
+
+    desenhaPoligno(vertices[1], vertices[0], vertices[3], vertices[2], normais[0], tx, ty);
+    desenhaPoligno(vertices[2], vertices[3], vertices[7], vertices[6], normais[1], tx, ty);
+    desenhaPoligno(vertices[3], vertices[0], vertices[4], vertices[7], normais[2], tx, ty);
+    desenhaPoligno(vertices[6], vertices[5], vertices[1], vertices[2], normais[3], tx, ty);
+    desenhaPoligno(vertices[4], vertices[5], vertices[6], vertices[7], normais[4], tx, ty);
+    desenhaPoligno(vertices[5], vertices[4], vertices[0], vertices[1], normais[5], tx, ty);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+}
+
+void desenhaPersonagem(void) {
+    if (!modelo.modelo) {
+        modelo.modelo = glmReadOBJ(NOME_PERSONAGEM);
+
+        if (!modelo.modelo){
+            exit(0);
+        }
+
+        glmUnitize(modelo.modelo);
+        glmFacetNormals(modelo.modelo);
+        glmVertexNormals(modelo.modelo, 90.0f);
+    }
+
+    glmDraw(modelo.modelo, GLM_SMOOTH | GLM_MATERIAL);
+}
+
+void desenhaBussola(int width, int height){
+    glViewport(width-60, 0, 60, 60);
+    glMatrixMode(GL_PROJECTION);
+
+    glLoadIdentity();
+    gluOrtho2D(-30, 30, -30, 30);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_LIGHTING);
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_COLOR_MATERIAL);
+
+    //desenhar bussola 2D
+    glBegin(GL_TRIANGLES);
+    glColor4f(0,0,0,0.2f);
+
+    glVertex2f(0,15);
+    glVertex2f(-6,0);
+    glVertex2f(6,0);
+    glColor4f(1.0f,1.0f,1.0f,0.2f);
+    glVertex2f(6.0f,0.0f);
+    glVertex2f(-6.0f,0.0f);
+    glVertex2f(0.0f,-15.0f);
+    glEnd();
+
+    glLineWidth(2.0f);
+    glColor3f(1,1,1);
+    glDisable(GL_BLEND);
+    strokeCenterString("N", 0, 20, 0, 0.1);
+    strokeCenterString("S", 0, -20, 0, 0.1);
+
+    //repor estado
+    glEnable(GL_LIGHTING);
+    glEnable(GL_COLOR_MATERIAL);
+    glEnable(GL_DEPTH_TEST);
+
+    //repor projeção chamando o redisplay
+    reshapeNavigateSubwindow(width, height);
+}
+
 void draw_win_msg(GLint width, GLint height) {
     // Save the current viewport settings
     GLint viewport[4];
@@ -608,6 +614,119 @@ void desenhaTimer(int width, int height) {
     }
     renderBitmapString(timerPosX, timerPosY, GLUT_BITMAP_HELVETICA_18, timerText);
 }
+
+void desenhaModeloDir(Objeto obj, int width, int height)
+{
+    redisplayTopSubwindow(width, height);
+}
+
+void desenhaAngVisao(Camera *cam)
+{
+    GLfloat ratio;
+    ratio=(GLfloat)glutGet(GLUT_WINDOW_WIDTH)/glutGet(GLUT_WINDOW_HEIGHT);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_FALSE);
+
+    glPushMatrix();
+    glTranslatef(cam->eye.x,OBJETO_ALTURA,cam->eye.z);
+    glColor4f(0.0f,0.0f,1.0f,0.2f);
+    glRotatef(GRAUS(cam->dir_long),0,1,0);
+    float angulo = GRAUS(modelo.objeto.dir);
+    glRotatef(angulo, 0, 1, 0);
+
+    glBegin(GL_TRIANGLES);
+    glVertex3f(0,0,0);
+    glVertex3f(5.0f * cos(RAD(cam->fov*ratio*0.5f)),0,-5.0f * sin(RAD(cam->fov*ratio*0.5f)));
+    glVertex3f(5.0f * cos(RAD(cam->fov*ratio*0.5f)),0,5.0f * sin(RAD(cam->fov*ratio*0.5f)));
+    glEnd();
+    glPopMatrix();
+
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+}
+
+void desenha_power_up(){
+    GLint i,j;
+    glColor3f(0.0f, 1.0f, 0.0f);
+
+    glPushMatrix();
+    glTranslatef(-MAZE_HEIGHT * 0.5f, 0.5f, -MAZE_WIDTH * 0.5f);
+    for(i = 0; i < MAZE_HEIGHT; i++)
+        for(j = 0; j < MAZE_WIDTH; j++)
+            if(mazedata[i][j] == '-') {
+                //if didn't catch any time power-up draw all
+                if (modelo.power_up_time_size != 0) {
+                    glPushMatrix();
+                    glColor3f(0.0f, 1.0f, 0.0f); //green
+                    glTranslated(i, 0, j);
+                    glutSolidSphere(modelo.power_up_time_size, 20, 20);
+                    glPopMatrix();
+                }
+            }else if(mazedata[i][j] == '+'){
+                glPushMatrix();
+                glTranslated(i, 0, j);
+                glColor3f(1.0f, 0.0f, 0.0f);
+                glutWireTeapot(modelo.teapot_size);
+                glPopMatrix();
+            }else if(mazedata[i][j] == '~'){
+                //if didn't catch any velocity power-up draw all
+                if (modelo.power_up_vel_size != 0) {
+                    glPushMatrix();
+                    glColor3f(0.0f, 0.0f, 1.0f); //blue
+                    glTranslated(i, 0, j);
+                    glutSolidSphere(modelo.power_up_vel_size, 20, 20);
+                    glPopMatrix();
+                }
+            }
+    glPopMatrix();
+}
+
+
+void desenhaLabirinto(GLuint texID){
+    GLint i,j;
+    glColor3f(0.8f, 0.8f, 0.8f);
+
+    glPushMatrix();
+    glTranslatef(-MAZE_HEIGHT * 0.5f, 0.5f, -MAZE_WIDTH * 0.5f);
+    for(i = 0; i < MAZE_HEIGHT; i++)
+        for(j = 0; j < MAZE_WIDTH; j++)
+            if(mazedata[i][j] == '*'){
+                glPushMatrix();
+                glTranslated(i, 0 ,j);
+                desenhaCubo((i+j) % 6, texID);
+                glPopMatrix();
+            }
+    glPopMatrix();
+}
+
+
+void desenhaChao(GLfloat dimensao, GLuint texID)
+{
+    GLfloat i,j;
+    glBindTexture(GL_TEXTURE_2D, texID);
+
+    glColor3f(0.5f,0.5f,0.5f);
+    for(i=-dimensao;i<=dimensao;i+=STEP)
+    {
+        for(j=-dimensao;j<=dimensao;j+=STEP)
+        {
+            glBegin(GL_POLYGON);
+            glNormal3f(0,1,0);
+            glTexCoord2f(1,1);
+            glVertex3f(i+STEP,0,j+STEP);
+            glTexCoord2f(0,1);
+            glVertex3f(i,0,j+STEP);
+            glTexCoord2f(0,0);
+            glVertex3f(i,0,j);
+            glTexCoord2f(1,0);
+            glVertex3f(i+STEP,0,j);
+            glEnd();
+        }
+    }
+
+}
+
 
 void changeLightsColorToGreen() {
     storedColor[0] = 0.0f;
@@ -670,119 +789,6 @@ void createMenu() {
     glutAttachMenu(GLUT_RIGHT_BUTTON);
 }
 
-/**************************************
-**** Funções auxiliares e de desenho ***
-**************************************/
-
-void desenhaModeloDir(Objeto obj, int width, int height)
-{
-    redisplayTopSubwindow(width, height);
-}
-
-void desenhaAngVisao(Camera *cam)
-{
-    GLfloat ratio;
-    ratio=(GLfloat)glutGet(GLUT_WINDOW_WIDTH)/glutGet(GLUT_WINDOW_HEIGHT);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-    glDepthMask(GL_FALSE);
-
-    glPushMatrix();
-    glTranslatef(cam->eye.x,OBJETO_ALTURA,cam->eye.z);
-    glColor4f(0.0f,0.0f,1.0f,0.2f);
-    glRotatef(GRAUS(cam->dir_long),0,1,0);
-    float angulo = GRAUS(modelo.objeto.dir);
-    glRotatef(angulo, 0, 1, 0);
-
-    glBegin(GL_TRIANGLES);
-        glVertex3f(0,0,0);
-        glVertex3f(5.0f * cos(RAD(cam->fov*ratio*0.5f)),0,-5.0f * sin(RAD(cam->fov*ratio*0.5f)));
-        glVertex3f(5.0f * cos(RAD(cam->fov*ratio*0.5f)),0,5.0f * sin(RAD(cam->fov*ratio*0.5f)));
-    glEnd();
-    glPopMatrix();
-
-    glDepthMask(GL_TRUE);
-    glDisable(GL_BLEND);
-}
-
-void desenha_power_up(){
-    GLint i,j;
-    glColor3f(0.0f, 1.0f, 0.0f);
-
-    glPushMatrix();
-    glTranslatef(-MAZE_HEIGHT * 0.5f, 0.5f, -MAZE_WIDTH * 0.5f);
-    for(i = 0; i < MAZE_HEIGHT; i++)
-        for(j = 0; j < MAZE_WIDTH; j++)
-            if(mazedata[i][j] == '-') {
-                if (modelo.power_up_time_size != 0) {
-                    glPushMatrix();
-                        glColor3f(0.0f, 1.0f, 0.0f); //green
-                        glTranslated(i, 0, j);
-                        glutSolidSphere(modelo.power_up_time_size, 20, 20);
-                        glPopMatrix();
-                }
-            }else if(mazedata[i][j] == '+'){
-                glPushMatrix();
-                glTranslated(i, 0, j);
-                glColor3f(1.0f, 0.0f, 0.0f);
-                glutWireTeapot(POWERUP_SIZE);
-                glPopMatrix();
-            }else if(mazedata[i][j] == '~'){
-                if (modelo.power_up_vel_size != 0) {
-                    glPushMatrix();
-                        glColor3f(0.0f, 0.0f, 1.0f); //blue
-                        glTranslated(i, 0, j);
-                        glutSolidSphere(modelo.power_up_vel_size, 20, 20);
-                        glPopMatrix();
-                }
-            }
-    glPopMatrix();
-}
-
-
-void desenhaLabirinto(GLuint texID){
-    GLint i,j;
-    glColor3f(0.8f, 0.8f, 0.8f);
-
-    glPushMatrix();
-    glTranslatef(-MAZE_HEIGHT * 0.5f, 0.5f, -MAZE_WIDTH * 0.5f);
-    for(i = 0; i < MAZE_HEIGHT; i++)
-        for(j = 0; j < MAZE_WIDTH; j++)
-            if(mazedata[i][j] == '*'){
-                glPushMatrix();
-                glTranslated(i, 0 ,j);
-                desenhaCubo((i+j) % 6, texID);
-                glPopMatrix();
-            }
-    glPopMatrix();
-}
-
-
-void desenhaChao(GLfloat dimensao, GLuint texID)
-{
-    GLfloat i,j;
-    glBindTexture(GL_TEXTURE_2D, texID);
-
-    glColor3f(0.5f,0.5f,0.5f);
-    for(i=-dimensao;i<=dimensao;i+=STEP)
-    {
-        for(j=-dimensao;j<=dimensao;j+=STEP)
-        {
-            glBegin(GL_POLYGON);
-            glNormal3f(0,1,0);
-            glTexCoord2f(1,1);
-            glVertex3f(i+STEP,0,j+STEP);
-            glTexCoord2f(0,1);
-            glVertex3f(i,0,j+STEP);
-            glTexCoord2f(0,0);
-            glVertex3f(i,0,j);
-            glTexCoord2f(1,0);
-            glVertex3f(i+STEP,0,j);
-            glEnd();
-        }
-    }
-
-}
 
 //criar uma funcao desenha powerups
 void createDisplayLists(int janelaID)
@@ -887,7 +893,6 @@ void displayNavigateSubwindow(){
     glLoadIdentity();
 
     setNavigateSubwindowCamera(&estado.camera, modelo.objeto);
-    //setLight();
 
     toggleFog();
 
@@ -922,8 +927,6 @@ void displayNavigateSubwindow(){
         glLightfv(GL_LIGHT0, GL_POSITION, light_pos);
         glPopMatrix();
 
-        // desenhaAngVisao(&estado.camera);
-
         // Disable lighting
         glDisable(GL_LIGHTING);
 
@@ -940,10 +943,8 @@ void displayNavigateSubwindow(){
 }
 
 
-/////////////////////////////////////
-//topSubwindow
-void setTopSubwindowCamera(Camera *cam, Objeto obj)
-{
+
+void setTopSubwindowCamera(Camera *cam, Objeto obj){
     cam->eye.x=obj.pos.x;
     cam->eye.z=obj.pos.z;
     if(estado.vista[JANELA_TOP])
@@ -952,8 +953,7 @@ void setTopSubwindowCamera(Camera *cam, Objeto obj)
         gluLookAt(obj.pos.x,CHAO_DIMENSAO*2,obj.pos.z,obj.pos.x,obj.pos.y,obj.pos.z,0,0,-1);
 }
 
-void displayTopSubwindow()
-{
+void displayTopSubwindow(){
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -990,8 +990,6 @@ void displayTopSubwindow()
     glutSwapBuffers();
 }
 
-/////////////////////////////////////
-//mainWindow
 
 void redisplayAll(void){
     glutSetWindow(estado.mainWindow);
@@ -1002,8 +1000,7 @@ void redisplayAll(void){
     glutPostRedisplay();
 }
 
-void displayMainWindow()
-{
+void displayMainWindow(){
     glClearColor(0.8f, 0.8f, 0.8f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     desenhaTimer(0, glutGet(GLUT_WINDOW_HEIGHT));
@@ -1011,13 +1008,18 @@ void displayMainWindow()
     glutSwapBuffers();
 }
 
-void check_level_win(){
-    if(estado.difficulty == 1 && estado.jogo == 2){
-        player.points +=5;
-    }else if(estado.difficulty == 0 && estado.jogo == 2){
+void check_win(){
+    //if in hardcore mode +3 points
+    if(estado.difficulty == 1 && estado.jogo == 2 && modelo.teapot_size == 0){
+        player.points += HARDCORE_POINTS;
+    }else if(estado.difficulty == 0 && estado.jogo == 2 && modelo.teapot_size == 0){
         player.points +=1;
+        //If ended the game
+    }else if(estado.jogo == 3){
+        player.points = 1337;
     }
 }
+
 
 
 /**************************************
@@ -1026,27 +1028,32 @@ void check_level_win(){
 void temporizador(int value) {
     if (modelo.time_timer > 0) {
         modelo.time_timer--;
-
+        //If time ended
         if (modelo.time_timer == 0) {
+            //change flag to 0 meaning game has ended
             estado.jogo = 0;
+            //change velocity of car to 0
             modelo.objeto.vel = 0;
+            //reset points to 0;
             player.points = 0;
         }else if(modelo.time_timer == HARD_TIME) {
             estado.difficulty = 1;
         }
-        if(player.powerup == 1 && modelo.time_timer <= GAME_DURATION - 5){
+        //If player catches the time power-up increase time
+        if(player.powerup == 1 && modelo.time_timer <= GAME_DURATION - INCREASE_TIME){
             modelo.power_up_time_size =0;
-            modelo.time_timer += 5;     //+ 5 seconds
+            modelo.time_timer += INCREASE_TIME;
             player.powerup =0 ;
         }
-        if(player.powerup == 2 && modelo.velocity_mult <= 0.20){
+        //If player catches the velocity power-up increase velocity of car
+        if(player.powerup == 2 && modelo.velocity_mult <= MAX_VELOCITY){
             modelo.power_up_vel_size =0;
             modelo.velocity_mult += 0.01f;
             player.powerup =0 ;
         }
     }
 
-    check_level_win();
+    check_win();
     glutTimerFunc(1000, temporizador, 0);
 
     redisplayAll();
@@ -1071,24 +1078,29 @@ void change_direction(){
     }
 }
 
-void check_win(){
-    if(estado.jogo == 0){
-        //player.points = 0;
-    }
-    if(estado.jogo == 2 && estado.difficulty == 1){
-        player.points += 5;
-    }
-    if(estado.jogo == 2 && estado.difficulty == 0){
-        player.points += 1;
-    }
-}
 
 
 int checkCollision_powerup(float carX, float carZ, float objectX, float objectZ, float radius) {
+    // Calculate the squared distance between the car and the power-up object (usando teorema de pitágoras para calcular
+    //o tamanho do vector entre 2 pontos)
     float distanceSquared = pow(carX - objectX, 2) + pow(carZ - objectZ, 2);
+    //Calculate the maximum squared distance at which the two car and power-up can be considered colliding
     float combinedRadiusSquared = pow(radius, 2);
 
     return distanceSquared <= combinedRadiusSquared;
+}
+
+int checkInsideBorders(float carX, float carZ) {
+    //check if car is entirely within a rectangular region defined by CHAO_DIMENSAO
+    if (carX - SCALE_PERSONAGEM >= -CHAO_DIMENSAO -SCALE_PERSONAGEM &&
+        carX + SCALE_PERSONAGEM <= CHAO_DIMENSAO + SCALE_PERSONAGEM &&
+        carZ - SCALE_PERSONAGEM >= -CHAO_DIMENSAO -SCALE_PERSONAGEM &&
+        carZ + SCALE_PERSONAGEM <= CHAO_DIMENSAO + SCALE_PERSONAGEM){
+        // The car is inside the borders
+        return 1;
+    }
+    // The car is outside the borders
+    return 0;
 }
 
 
@@ -1109,19 +1121,20 @@ int checkCollision(float carX, float carZ) {
                 if (carX + halfCubeSize >= cubeX - halfCubeSize &&
                     carX - halfCubeSize <= cubeX + halfCubeSize &&
                     carZ + halfCubeSize >= cubeZ - halfCubeSize &&
-                    carZ - halfCubeSize <= cubeZ + halfCubeSize) {
+                    carZ - halfCubeSize <= cubeZ + halfCubeSize || checkInsideBorders(carX, carZ) ==0) {
                     return 1; // Collision detected
                 }
-            }else if(mazedata[i][j] == '-' || mazedata[i][j] == '~') {
+            }else if(mazedata[i][j] == '-' || mazedata[i][j] == '~' || mazedata[i][j] == '+') {
                 //Check if collided with power-up
                 GLfloat pupX = i - MAZE_HEIGHT * cubeSize; // Power-up X
                 GLfloat pupZ = j - MAZE_WIDTH * cubeSize; // Power-up Z
                 if (checkCollision_powerup(carX, carZ, pupX, pupZ, POWERUP_SIZE)) {
-                    //printf("POWER_UP!!!\n");
                     if(mazedata[i][j] == '~'){
                         return 3; // Collision detected power-up velocity
-                    }else{
+                    }else if(mazedata[i][j] == '-'){
                         return 2; // Collision detected power-up timer
+                    }else{
+                        return 4; //Collision detected teapot
                     }
                 }
             }
@@ -1164,14 +1177,21 @@ void timer(int value){
             modelo.objeto.pos.x = nx;
             modelo.objeto.pos.z = nz;
             andar = GL_TRUE;
-        } else if (collisionResult == 2 || collisionResult == 3) {
+            //collides with power-ups or teapot
+        } else if (collisionResult == 2 || collisionResult == 3 || collisionResult == 4) {
             // Collision with power-up
             modelo.objeto.pos.x = nx;
             modelo.objeto.pos.z = nz;
             if(collisionResult == 3){
                 player.powerup = 2;     //set flag to 2 when player hits velocity power-up
-            }else {
+            }else if(collisionResult == 2){
                 player.powerup = 1;     //set flag to 1 when player hits timer power-up
+            }else{
+                modelo.teapot_size = 0;
+                estado.jogo = 2;
+                check_win();
+                init();
+                glutPostRedisplay();
             }
             //printf("power up !!!\n");
             andar = GL_TRUE;
@@ -1181,18 +1201,9 @@ void timer(int value){
             printf("Collision!\n");
         }
     }
-
         //Change object and camera direction
         change_direction();
 
-        if (isInsideMazeXBorders() == -1) {
-        // Player reached the exit, set win condition
-            printf("Congratulations! You won!\n");
-            estado.jogo = 2;
-            check_win();
-            init();
-            glutPostRedisplay();
-        }
         if(isInsideMazeXBorders() == 0 || isInsideMazeZBorders() == 0){
             andar = GL_FALSE;
         }
