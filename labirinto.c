@@ -105,6 +105,7 @@ typedef struct camera{
 } Camera;
 typedef struct player{
     GLuint points;
+    GLuint wins;
     GLboolean powerup;  //if set to 1 timer power-up activated, if set to 2 velocity power-up activated if set to 3 mouse mode activated
 } PLAYER;
 typedef struct {
@@ -534,8 +535,7 @@ void draw_win_msg(GLint width, GLint height) {
     GLint viewport[4];
     glGetIntegerv(GL_VIEWPORT, viewport);
 
-    // Set viewport and orthographic projection for drawing difficulty
-    glViewport(width - 100, height - 30, 100, 30);
+    glViewport(width - 178, height - 30, 100, 30);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     gluOrtho2D(0, 100, 0, 30);
@@ -544,20 +544,26 @@ void draw_win_msg(GLint width, GLint height) {
 
     glColor3f(0.0f, 0.0f, 1.0f);
 
-    // Position of the difficulty text in the top right corner
-    GLfloat difficultyPosX = 5.0f, difficultyPosY = 10.0f;
+    GLfloat difficultyPosX = 0.2f, difficultyPosY = 10.0f;
 
     char difficultyText[100];
+    char winsText[100];
 
-    sprintf(difficultyText, "WINS:%d", player.points);
+    sprintf(difficultyText, "POINTS: %d ", player.points);
 
     renderBitmapString(difficultyPosX, difficultyPosY, GLUT_BITMAP_HELVETICA_18, difficultyText);
+
+    // Calculate the width of the "POINTS" text
+    int difficultyTextLength = strlen(difficultyText);
+    GLfloat winsPosX = difficultyPosX + (difficultyTextLength * 8.0f) + 15.0f;
+
+    sprintf(winsText, "WINS: %d", player.wins);
+
+    renderBitmapString(winsPosX, difficultyPosY, GLUT_BITMAP_HELVETICA_18, winsText);
 
     // Restore the original viewport settings
     glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
 }
-
-
 
 void desenhaTimer(int width, int height) {
     glViewport(0, height - 30, 100, 30);
@@ -996,9 +1002,11 @@ void displayMainWindow(){
 void check_win(){
     //if in hardcore mode +3 points
     if(estado.difficulty == 1 && estado.jogo == 2 && modelo.teapot_size == 0){
-        player.points = 1337;
+        player.points = 5;
+        player.wins++;
     }else if(estado.difficulty == 0 && estado.jogo == 2 && modelo.teapot_size == 0){
         player.points +=1;
+        player.wins++;
     }
 }
 
