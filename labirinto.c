@@ -231,6 +231,7 @@ void init(void)
     estado.won = 0;
     estado.points_added = 0;
 
+
     estado.localViewer = 1;
     estado.vista[JANELA_TOP] = 0;
     estado.vista[JANELA_NAVIGATE] = 0;
@@ -1015,9 +1016,16 @@ void displayMainWindow(){
 void check_win(){
 
      if (estado.difficulty == 1 && estado.jogo == 2 && modelo.teapot_size == 0 & estado.points_added == 0) {
-         player.points = 1337;
-         player.wins++;
-         estado.points_added = 1;
+         if(player.points < 1337){
+             player.points = 1337;
+             player.wins++;
+             estado.points_added = 1;
+         }
+         if(player.points >= 1337 & estado.points_added == 0){
+             player.wins = 0;
+             player.points = 0;
+             estado.points_added = 1;
+         }
      } else if (estado.difficulty == 0 && estado.jogo == 2 && modelo.teapot_size == 0 & estado.points_added == 0) {
          if(player.points < 1337){
              player.points++;
@@ -1330,6 +1338,7 @@ void key(unsigned char key, int x, int y)
             if(estado.difficulty != 1){
                 init();
                 player.points = 0;
+                player.wins = 0;
             }
             break;
         case 'z':
