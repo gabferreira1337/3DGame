@@ -31,7 +31,7 @@
 #define RAD(x)          (M_PI*(x)/180)
 #define GRAUS(x)        (180*(x)/M_PI)
 
-#define DEBUG 1
+#define DEBUG 0
 
 #define	GAP					      25
 
@@ -55,6 +55,7 @@
 #define INCREASE_TIME 5 //time to increase when car collides with power-up
 #define MAX_VELOCITY 0.20f
 #define MOUSE_TIME 10       //tempo do efeito ao apanhar power-up modo rato
+#define MAX_POINTS_WINS 1337
 
 
 
@@ -263,6 +264,11 @@ void init(void)
     glEnable(GL_POLYGON_SMOOTH);
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_NORMALIZE);
+
+    if(player.points == 1337 || player.wins == 1337){
+        player.points = 0;
+        player.wins = 0;
+    }
 
     if (glutGetWindow() == estado.mainWindow)
         glClearColor(0.8f, 0.8f, 0.8f, 0.0f);
@@ -595,18 +601,20 @@ void desenhaTimer(int width, int height) {
 
     if(estado.jogo == 0){
         sprintf(timerText, "GAME OVER! PRESS R TO RESTART");
-    }else if(estado.difficulty == 1 && estado.won == 0){
-        sprintf(timerText, "Tempo restante: %d s HARDCORE MODE!!!", modelo.time_timer);
+    }else if(player.powerup == 3  && modelo.power_up_mouse_size != 0) {
+        sprintf(timerText, "Tempo restante: %d s ¯\\_(^_^)_/¯",modelo.time_timer);
+    }else if(player.powerup == 2 && modelo.power_up_vel_size != 0 ){
+        sprintf(timerText, "Tempo restante: %d Da-lhe gas",modelo.time_timer);
     }else if(player.powerup == 1  && modelo.power_up_time_size != 0){
         sprintf(timerText, "Tempo restante: %d s POWER-UP +5s",modelo.time_timer);
-    }else if(player.powerup == 2 && modelo.power_up_vel_size != 0){
-        sprintf(timerText, "Tempo restante: %d Da-lhe gas",modelo.time_timer);
+    }else if(estado.difficulty == 1 && estado.won == 0){
+        sprintf(timerText, "Tempo restante: %d s HARDCORE MODE!!!", modelo.time_timer);
     }else if(estado.start == 0){
-        sprintf(timerText, "Press S to start! Or Z for a surprise :)", modelo.time_timer);
+        sprintf(timerText, "Press S to start! Or Z for a surprise :)");
     }else if(estado.difficulty == 0 && estado.won == 1){
-        sprintf(timerText, "You won! :)", modelo.time_timer);
+        sprintf(timerText, "You won! :)");
     }else if(estado.difficulty == 1 && estado.won == 1){
-        sprintf(timerText, "You are a 1337 player! :)", modelo.time_timer);
+        sprintf(timerText, "You're a 1337 player! :)");
     }else{
         sprintf(timerText, "Tempo restante: %d s",modelo.time_timer);
     }
@@ -1013,23 +1021,23 @@ void displayMainWindow(){
 void check_win(){
 
      if (estado.difficulty == 1 && estado.jogo == 2 && modelo.teapot_size == 0 & estado.points_added == 0) {
-         if(player.points < 1337){
-             player.points = 1337;
+         if(player.points < MAX_POINTS_WINS){
+             player.points = MAX_POINTS_WINS;
              player.wins++;
              estado.points_added = 1;
          }
-         if(player.points >= 1337 & estado.points_added == 0){
+         if(player.points >= MAX_POINTS_WINS & estado.points_added == 0){
              player.wins = 0;
              player.points = 0;
              estado.points_added = 1;
          }
      } else if (estado.difficulty == 0 && estado.jogo == 2 && modelo.teapot_size == 0 & estado.points_added == 0) {
-         if(player.points < 1337){
+         if(player.points < MAX_POINTS_WINS){
              player.points++;
              player.wins++;
              estado.points_added = 1;
          }
-         if(player.points >= 1337 & estado.points_added == 0){
+         if(player.points >= MAX_POINTS_WINS & estado.points_added == 0){
              player.wins = 0;
              player.points = 0;
              estado.points_added = 1;
@@ -1064,7 +1072,7 @@ void temporizador(int value) {
             modelo.objeto.vel = 0;
             // Reset points to 0
             player.points = 0;
-        } /*else if (modelo.time_timer == HARD_TIME) {
+        }/*else if (modelo.time_timer == HARD_TIME) {
             estado.difficulty = 1;
         }*/
         // If player catches the time power-up, increase time
@@ -1193,7 +1201,7 @@ int checkCollision(float carX, float carZ) {
     return 0;
 }
 
-void someFunction(int nothing){
+void check_win_message(){
     check_win();
     init();
     glutPostRedisplay();
@@ -1246,7 +1254,7 @@ void timer(){
                 estado.jogo = 2;
                 estado.won = 1;
                 modelo.teapot_size = 0;
-                glutTimerFunc(3000, someFunction, 0);
+                glutTimerFunc(3000, check_win_message, 0);
             }
             //printf("power up !!!\n");
         } else {
@@ -1272,13 +1280,28 @@ void timer(){
 
 void imprime_ajuda(void)
 {
-    printf("\n\nProjeto MUL1\n");
+    printf("          ____                       ,----,                                                    ,--.         ,--.                      \n");
+    printf("        ,'  , `.   ,---,           .'   .`|    ,---,.        ,-.----.                        ,--.'|       ,--.'|    ,---,.,-.----.    \n");
+    printf("     ,-+-,.' _ |  '  .' \\       .'   .'   ;  ,'  .' |        \\    /  \\           ,--,    ,--,:  : |   ,--,:  : |  ,'  .' |\\    /  \\   \n");
+    printf("  ,-+-. ;   , || /  ;    '.   ,---, '    .',---.'   |        ;   :    \\        ,'_ /| ,`--.'`|  ' :,`--.'`|  ' :,---.'   |;   :    \\  \n");
+    printf(" ,--.'|'   |  ;|:  :       \\  |   :     ./ |   |   .'        |   | .\\ :   .--. |  | : |   :  :  | ||   :  :  | ||   |   .'|   | .\\ :  \n");
+    printf("|   |  ,', |  '::  |   /\\   \\ ;   | .'  /  :   :  |-,        .   : |: | ,'_ /| :  . | :   |   \\ | ::   |   \\ | ::   :  |-,.   : |: |  \n");
+    printf("|   | /  | |  |||  :  ' ;.   :`---' /  ;   :   |  ;/|        |   |  \\ : |  ' | |  . . |   : '  '; ||   : '  '; |:   |  ;/||   |  \\ :  \n");
+    printf("'   | :  | :  |,|  |  ;/  \\   \\ /  ;  /    |   :   .'        |   : .  / |  | ' |  | | '   ' ;.    ;'   ' ;.    ;|   :   .'|   : .  /  \n");
+    printf(";   . |  ; |--' '  :  | \\  \\ ,';  /  /--,  |   |  |-,        ;   | |  \\ :  | | :  ' ; |   | | \\   ||   | | \\   ||   |  |-,;   | |  \\  \n");
+    printf("|   : |  | ,    |  |  '  '--' /  /  / .`|  '   :  ;/|        |   | ;\\  \\|  ; ' |  | ' '   : |  ; .''   : |  ; .''   :  ;/||   | ;\\  \\ \n");
+    printf("|   : '  |/     |  :  :     ./__;       :  |   |    \\        :   ' | \\.':  | : ;  ; | |   | '`--'  |   | '`--'  |   |    \\:   ' | \\.' \n");
+    printf(";   | |`-'      |  | ,'     |   :     .'   |   :   .'        :   : :-'  '  :  `--'   \'   : |      '   : |      |   :   .':   : :-'   \n");
+    printf("|   ;/          `--''       ;   |  .'      |   | ,'          |   |.'    :  ,      .-./;   |.'      ;   |.'      |   | ,'  |   |.'     \n");
+    printf("'---'                       `---'          `----'            `---'       `--`----'    '---'        '---'        `----'    `---'       \n");
+    printf("\n");
     printf("h,H   - Ajuda \n");
     printf("******* Diversos ******* \n");
     printf("l,L   - Alterna o calculo luz entre Z e eye (GL_LIGHT_MODEL_LOCAL_VIEWER)\n");
     printf("w,W   - Wireframe \n");
     printf("f,F   - Fill \n");
     printf("r,R   - Restart Game \n");
+    printf("s,S   - Start Game \n");
     printf("z,Z   - Hardcore Mode \n");
     printf("******* Movimento ******* \n");
     printf("UP    - Avança  \n");
@@ -1481,7 +1504,6 @@ int main_3Dgame(int argc, char **argv){
         exit(1);
 
     imprime_ajuda();
-
     // Registar callbacks do GLUT da janela principal
     glutReshapeFunc(reshapeMainWindow);
     glutDisplayFunc(displayMainWindow);
@@ -1527,6 +1549,7 @@ int main_3Dgame(int argc, char **argv){
     glutKeyboardFunc(key);
     glutSpecialFunc(specialKey);
     glutSpecialUpFunc(specialKeyUp);
+
 
     glutMainLoop();
     return 0;
