@@ -17,9 +17,9 @@ Maze Runner is a simple 3D game implemented in C using OpenGL. The game involves
     - *Down Arrow Key:* Move the car backward.
     - *Left/Right Arrow Keys:* Rotate the car left or right.
     - *Mouse Drag:* Control the camera view angle.
-    - *'S' key: Start the game
-    - *'Z' key: Start the game in hardcore mode.
-    - *'R' key: Restart the game.
+    - *'S'* key:* Start the game
+    - *'Z' key:* Start the game in hardcore mode.
+    - *'R' key:* Restart the game.
 
 2. **Menu Options:**
     - *Right-Click Menu:* Change car colors or reset the camera angle.
