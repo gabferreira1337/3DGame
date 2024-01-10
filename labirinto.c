@@ -596,7 +596,7 @@ void desenhaTimer(int width, int height) {
     if(estado.jogo == 0){
         sprintf(timerText, "GAME OVER! PRESS R TO RESTART");
     }else if(estado.difficulty == 1){
-        sprintf(timerText, "Tempo restante: %d s HARDCORE MODE!!!",modelo.time_timer);
+        sprintf(timerText, "Tempo restante: %d s HARDCORE MODE!!!", modelo.time_timer);
     }else if(player.powerup == 1  && modelo.power_up_time_size != 0){
         sprintf(timerText, "Tempo restante: %d s POWER-UP +5s",modelo.time_timer);
     }else if(player.powerup == 2 && modelo.power_up_vel_size != 0){
@@ -606,7 +606,7 @@ void desenhaTimer(int width, int height) {
     }else if(estado.difficulty == 0 && estado.won == 1){
         sprintf(timerText, "You won! :)", modelo.time_timer);
     }
-    else if(estado.difficulty == 1 && estado.won == 1){
+    if(estado.difficulty == 1 && estado.won == 1){
         sprintf(timerText, "You are a super player! :)", modelo.time_timer);
     }
     else{
@@ -1291,7 +1291,7 @@ void imprime_ajuda(void)
 ********* CALLBACKS TECLADO ***********
 **************************************/
 
-/* Callback para interação via teclado (carregar na tecla) */
+/* Callback para interação via teclado */
 void key(unsigned char key, int x, int y)
 {
     switch (key) {
