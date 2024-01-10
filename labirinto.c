@@ -587,7 +587,7 @@ void desenhaTimer(int width, int height) {
 
     glColor3f(0.0f, 0.0f, 1.0f);
 
-    // Posição do timer
+    // Posição do timer  
     GLfloat timerPosX = 10;
     GLfloat timerPosY = 10;
 
