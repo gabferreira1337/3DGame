@@ -4,7 +4,6 @@
 #include <math.h>
 #include <time.h>
 #include "glm.h"
-#include "main_3dgame.h"
 #include "labirinto.h"
 
 
