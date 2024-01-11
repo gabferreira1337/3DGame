@@ -1,4 +1,4 @@
-# MAZE RUNNER 3D GAME                                                                                           
+#MAZE RUNNER 3D GAME                                                                                           
 ## Introduction
 Maze Runner is a simple 3D game implemented in C using OpenGL. The game involves navigating a car through a maze environment, avoiding collisions, changing the car's colors, catch power-ups and find a teapot to exit from the maze.
 
